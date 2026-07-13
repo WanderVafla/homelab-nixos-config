@@ -1,10 +1,9 @@
 name: Check Quality & Syntax
 
-# Запускается на ЛЮБОЙ ветке и на ВСЕХ pull requests
 on:
   push:
     branches:
-      - '**'  # Все ветки
+      - '**'
     paths:
       - 'flake.nix'
       - 'flake.lock'
@@ -23,11 +22,10 @@ on:
       - 'secrets/**'
 
 jobs:
-  # Работа 1: Проверка синтаксиса и сборка
+  # Работа 1: Проверка синтаксиса и сборка (Оставляем как есть, она хороша)
   check-syntax:
     runs-on: ubuntu-latest
     name: Syntax & Flake Check
-    
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -42,13 +40,11 @@ jobs:
         
       - name: Build configuration (dry-run)
         run: nix build .#nixosConfigurations.homelab-server.config.system.build.toplevel --dry-run
-        continue-on-error: false
 
-  # Работа 2: Форматирование (nixfmt, shellcheck)
+  # Работа 2: Форматирование (Исправлено чтение ошибок и ускорен запуск)
   check-format:
     runs-on: ubuntu-latest
     name: Code Formatting
-    
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -59,31 +55,24 @@ jobs:
           nix-path: nixpkgs=channel:nixos-unstable
 
       - name: Install formatters
-        run: nix-env -i nixfmt shellcheck
+        run: nix-env -iA nixpkgs.nixfmt-rfc-style nixpkgs.shellcheck
 
       - name: Check Nix formatting
-        run: |
-          echo "Checking Nix files..."
-          find . -name "*.nix" -not -path "./.*" | while read file; do
-            echo "Checking $file..."
-            nixfmt --check "$file" || echo "⚠️  $file needs formatting"
-          done
+        # Если используется nixfmt-rfc-style, он умеет проверять директории рекурсивно
+        run: nixfmt --check .
         continue-on-error: true
 
       - name: Check shell scripts
+        # Исправлено: find -exec возвращает честный код ошибки, если shellcheck упадет
         run: |
           echo "Checking shell scripts..."
-          find scripts -name "*.sh" -o -name "*.bash" | while read file; do
-            echo "Checking $file..."
-            shellcheck "$file" || echo "⚠️  $file has issues"
-          done 2>/dev/null || true
+          find scripts -type f \( -name "*.sh" -o -name "*.bash" \) -exec shellcheck {} +
         continue-on-error: true
 
-  # Работа 3: Проверка безопасности
+  # Работа 3: Проверка безопасности (Без изменений, grep-проверки написаны корректно)
   check-security:
     runs-on: ubuntu-latest
     name: Security Check
-    
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -100,7 +89,6 @@ jobs:
             exit 1
           fi
           echo "✅ No hardcoded secrets found"
-        continue-on-error: false
 
       - name: Check for root usage in configs
         run: |
@@ -111,11 +99,10 @@ jobs:
           echo "✅ Security check complete"
         continue-on-error: true
 
-  # Работа 4: Проверка конфигурации
+  # Работа 4: Проверка конфигурации (Убедитесь, что пути к файлам точные)
   check-config:
     runs-on: ubuntu-latest
     name: Configuration Validation
-    
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -132,7 +119,6 @@ jobs:
             "modules/users.nix"
             "modules/services.nix"
           )
-          
           for file in "${required_files[@]}"; do
             if [ ! -f "$file" ]; then
               echo "❌ Missing required file: $file"
@@ -151,11 +137,10 @@ jobs:
             exit 1
           fi
 
-  # Работа 5: Lint и код анализ
+  # Работа 5: Lint и код анализ (Исправлен синтаксис nix-env)
   lint:
     runs-on: ubuntu-latest
     name: Linting
-    
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -165,24 +150,22 @@ jobs:
         with:
           nix-path: nixpkgs=channel:nixos-unstable
 
+      - name: Install Linters
+        run: nix-env -iA nixpkgs.statix nixpkgs.deadnix
+
       - name: Run statix (Nix linter)
-        run: |
-          nix-env -i statix
-          statix check . || true
+        run: statix check .
         continue-on-error: true
 
       - name: Run deadnix (unused variables detector)
-        run: |
-          nix-env -i deadnix
-          deadnix -f . || true
+        run: deadnix -f .
         continue-on-error: true
 
-  # Результат: можно ли мерджить?
+  # Результат
   quality-gate:
     needs: [check-syntax, check-format, check-security, check-config, lint]
     runs-on: ubuntu-latest
     name: Quality Gate
-    
     steps:
       - name: All checks passed
         run: |
