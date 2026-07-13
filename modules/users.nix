@@ -9,7 +9,7 @@
   users.users.github_deploy = {
     isNormalUser = true;
     extraGroups = [];
-    shell = pkgs.nologin;
+    shell = "${pkgs.shadow}/sbin/nologin";
     description = "Deploy automation user";
   };
 
