@@ -1,0 +1,43 @@
+name: Deploy NixOS Configuration
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    needs: check
+    runs-on: ubuntu-latest
+    name: Deploy to homelab-server
+
+    # Выполняй только если пуш в main, не для pull requests
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.DEPLOY_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H ${{ secrets.DEPLOY_HOST }} >> ~/.ssh/known_hosts 2>/dev/null || true
+
+      - name: Deploy to server
+        run: |
+          ssh -i ~/.ssh/deploy_key \
+            ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} \
+            "cd ~/nixos-config && git pull && sudo nixos-rebuild switch --flake .#homelab-server"
+
+      - name: Verify deployment
+        run: |
+          ssh -i ~/.ssh/deploy_key \
+            ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} \
+            "echo '✅ Deployment successful' && systemctl status couchdb --no-pager | head -5"
+
+        continue-on-error: true
+
+      - name: Cleanup SSH key
+        if: always()
+        run: rm -f ~/.ssh/deploy_key
