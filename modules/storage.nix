@@ -1,4 +1,4 @@
-{ config, lib, pkgs, ... }
+{ config, lib, pkgs, ... }:
 
 let
   secrets = builtins.fromJSON (
@@ -11,7 +11,6 @@ in
     owner = "root";
     mode = "0600";
   };
-}
 
 services.couchdb = {
     enable = true;
@@ -21,3 +20,4 @@ services.couchdb = {
 
     bindAddress = "0.0.0.0";
   };
+}
