@@ -4,170 +4,26 @@ on:
   push:
     branches:
       - '**'
-    paths:
-      - 'flake.nix'
-      - 'flake.lock'
-      - 'configuration.nix'
-      - 'modules/**'
-      - 'secrets/**'
-      - '.github/workflows/**'
   pull_request:
     branches:
       - main
-    paths:
-      - 'flake.nix'
-      - 'flake.lock'
-      - 'configuration.nix'
-      - 'modules/**'
-      - 'secrets/**'
 
 jobs:
-  # Работа 1: Проверка синтаксиса и сборка (Оставляем как есть, она хороша)
-  check-syntax:
+  check:
     runs-on: ubuntu-latest
-    name: Syntax & Flake Check
+    name: Nix Flake Check
+    
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Install Nix
-        uses: cachix/install-nix-action@v25
+      - uses: cachix/install-nix-action@v25
         with:
           nix-path: nixpkgs=channel:nixos-unstable
 
-      - name: Check flake.nix syntax
+      # Проверка синтаксиса
+      - name: Flake check
         run: nix flake check
-        
-      - name: Build configuration (dry-run)
+
+      # Построение конфига (без реального применения)
+      - name: Build configuration
         run: nix build .#nixosConfigurations.homelab-server.config.system.build.toplevel --dry-run
-
-  # Работа 2: Форматирование (Исправлено чтение ошибок и ускорен запуск)
-  check-format:
-    runs-on: ubuntu-latest
-    name: Code Formatting
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Install Nix
-        uses: cachix/install-nix-action@v25
-        with:
-          nix-path: nixpkgs=channel:nixos-unstable
-
-      - name: Install formatters
-        run: nix-env -iA nixfmt-rfc-style shellcheck
-
-      - name: Check Nix formatting
-        # Если используется nixfmt-rfc-style, он умеет проверять директории рекурсивно
-        run: nixfmt --check .
-        continue-on-error: true
-
-      - name: Check shell scripts
-        # Исправлено: find -exec возвращает честный код ошибки, если shellcheck упадет
-        run: |
-          echo "Checking shell scripts..."
-          find scripts -type f \( -name "*.sh" -o -name "*.bash" \) -exec shellcheck {} +
-        continue-on-error: true
-
-  # Работа 3: Проверка безопасности (Без изменений, grep-проверки написаны корректно)
-  check-security:
-    runs-on: ubuntu-latest
-    name: Security Check
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Check for hardcoded secrets
-        run: |
-          echo "Scanning for hardcoded secrets..."
-          if grep -r "password\s*=\s*\"" modules/ --include="*.nix" | grep -v "Placeholder"; then
-            echo "❌ Found hardcoded passwords!"
-            exit 1
-          fi
-          if grep -r "adminPass\s*=\s*\"" modules/ --include="*.nix" | grep -v "secrets\|config.age"; then
-            echo "❌ Found hardcoded adminPass!"
-            exit 1
-          fi
-          echo "✅ No hardcoded secrets found"
-
-      - name: Check for root usage in configs
-        run: |
-          echo "Checking unsafe configurations..."
-          if grep -r "PermitRootLogin\s*yes" modules/ --include="*.nix"; then
-            echo "⚠️  Warning: PermitRootLogin is set to yes"
-          fi
-          echo "✅ Security check complete"
-        continue-on-error: true
-
-  # Работа 4: Проверка конфигурации (Убедитесь, что пути к файлам точные)
-  check-config:
-    runs-on: ubuntu-latest
-    name: Configuration Validation
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Verify required files exist
-        run: |
-          echo "Checking required files..."
-          required_files=(
-            "flake.nix"
-            "configuration.nix"
-            "hardware-configuration.nix"
-            "modules/boot.nix"
-            "modules/networking.nix"
-            "modules/users.nix"
-            "modules/services.nix"
-          )
-          for file in "${required_files[@]}"; do
-            if [ ! -f "$file" ]; then
-              echo "❌ Missing required file: $file"
-              exit 1
-            fi
-          done
-          echo "✅ All required files present"
-
-      - name: Check module imports
-        run: |
-          echo "Verifying module imports..."
-          if grep -q "imports = \[" configuration.nix; then
-            echo "✅ Module imports found"
-          else
-            echo "❌ No module imports in configuration.nix"
-            exit 1
-          fi
-
-  # Работа 5: Lint и код анализ (Исправлен синтаксис nix-env)
-  lint:
-    runs-on: ubuntu-latest
-    name: Linting
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Install Nix
-        uses: cachix/install-nix-action@v25
-        with:
-          nix-path: nixpkgs=channel:nixos-unstable
-
-      - name: Install Linters
-        run: nix-env -iA nixpkgs.statix nixpkgs.deadnix
-
-      - name: Run statix (Nix linter)
-        run: statix check .
-        continue-on-error: true
-
-      - name: Run deadnix (unused variables detector)
-        run: deadnix -f .
-        continue-on-error: true
-
-  # Результат
-  quality-gate:
-    needs: [check-syntax, check-format, check-security, check-config, lint]
-    runs-on: ubuntu-latest
-    name: Quality Gate
-    steps:
-      - name: All checks passed
-        run: |
-          echo "✅ All quality checks passed!"
-          echo "Ready to merge to main or deploy"

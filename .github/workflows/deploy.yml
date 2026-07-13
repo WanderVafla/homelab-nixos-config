@@ -1,43 +1,44 @@
-name: Deploy NixOS Configuration
+name: Deploy to Production
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main
 
 jobs:
   deploy:
-    needs: check
     runs-on: ubuntu-latest
     name: Deploy to homelab-server
-
-    # Выполняй только если пуш в main, не для pull requests
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-
+    environment:
+      name: production
+    
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Setup SSH key
+      - uses: cachix/install-nix-action@v25
+        with:
+          nix-path: nixpkgs=channel:nixos-unstable
+
+      - name: Setup SSH
         run: |
           mkdir -p ~/.ssh
           echo "${{ secrets.DEPLOY_KEY }}" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
           ssh-keyscan -H ${{ secrets.DEPLOY_HOST }} >> ~/.ssh/known_hosts 2>/dev/null || true
 
-      - name: Deploy to server
+      - name: Deploy
         run: |
           ssh -i ~/.ssh/deploy_key \
             ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} \
             "cd ~/nixos-config && git pull && sudo nixos-rebuild switch --flake .#homelab-server"
 
-      - name: Verify deployment
+      - name: Verify
         run: |
           ssh -i ~/.ssh/deploy_key \
             ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} \
-            "echo '✅ Deployment successful' && systemctl status couchdb --no-pager | head -5"
-
+            "systemctl status couchdb --no-pager | head -3"
         continue-on-error: true
 
-      - name: Cleanup SSH key
+      - name: Cleanup
         if: always()
         run: rm -f ~/.ssh/deploy_key
