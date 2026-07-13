@@ -16,7 +16,7 @@
   security.sudo.extraRules = [
     {
       users = [ "github_deploy" ];
-      command = [
+      commands = [
         {
           command = "${pkgs.nixos-rebuild}/bin/nixos-rebuild";
           options = [ "NOPASSWD" "SETENV" ];
