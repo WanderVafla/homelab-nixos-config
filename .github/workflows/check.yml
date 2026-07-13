@@ -55,7 +55,7 @@ jobs:
           nix-path: nixpkgs=channel:nixos-unstable
 
       - name: Install formatters
-        run: nix-env -iA nixpkgs.nixfmt-rfc-style nixpkgs.shellcheck
+        run: nix-env -iA nixfmt-rfc-style shellcheck
 
       - name: Check Nix formatting
         # Если используется nixfmt-rfc-style, он умеет проверять директории рекурсивно
