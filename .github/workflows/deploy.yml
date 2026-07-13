@@ -19,6 +19,11 @@ jobs:
         with:
           nix-path: nixpkgs=channel:nixos-unstable
 
+      - name: Connect to Tailscale VPN
+        uses: tailscale/github-action@v2
+        with:
+          authkey: ${{ secrets.TAILSCALE_AUTH_KEY }}
+    
       - name: Setup SSH
         run: |
           mkdir -p ~/.ssh
