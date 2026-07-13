@@ -1,0 +1,7 @@
+/result
+result
+*.swp
+*.swo
+*~
+.DS_Store
+.envrc
