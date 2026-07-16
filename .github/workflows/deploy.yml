@@ -35,7 +35,7 @@ jobs:
         run: |
           ssh -i ~/.ssh/deploy_key \
             ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} \
-            "cd ~/nixos-config && git pull && sudo nixos-rebuild switch --flake .#homelab-server"
+            "cd ~/etc/nixos/ && git pull && sudo nixos-rebuild switch --flake .#homelab-server"
 
       - name: Verify
         run: |
