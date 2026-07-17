@@ -11,7 +11,7 @@ jobs:
     name: Deploy to homelab-server
     environment:
       name: production
-    
+
     steps:
       - uses: actions/checkout@v4
 
@@ -23,7 +23,7 @@ jobs:
         uses: tailscale/github-action@v2
         with:
           authkey: ${{ secrets.TAILSCALE_AUTH_KEY }}
-    
+
       - name: Setup SSH
         run: |
           mkdir -p ~/.ssh
@@ -31,11 +31,26 @@ jobs:
           chmod 600 ~/.ssh/deploy_key
           ssh-keyscan -H ${{ secrets.DEPLOY_HOST }} >> ~/.ssh/known_hosts 2>/dev/null || true
 
+      - name: Check Remoting
+        run: |
+          cd /etc/nixos && echo 'Checking remoting folder to repo' \
+          if ! ls -a | grep ".git"; then \
+            git init -b main
+            git remote add origin git@github.com:WanderVafla/homelab-nixos-config.git; \
+            git feach origin
+          if ! git remove -v | grep 'origin	git@github.com:WanderVafla/homelab-nixos-config.git (fetch)'; then \
+
+
       - name: Deploy
         run: |
           ssh -i ~/.ssh/deploy_key \
             ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} \
-            "cd ~/etc/nixos/ && git pull && sudo nixos-rebuild switch --flake .#homelab-server"
+            "cd ~/etc/nixos && \
+             ([ -d .git ] || (git init -b main && git remote add origin git@github.com:procenkovladik2/homelab-nixos-config.git)) && \
+             git fetch origin main --timeout=15 && \
+             git reset --hard origin/main && \
+             (git branch -u origin/main main 2>/dev/null || true) && \
+             sudo nixos-rebuild switch --flake .#homelab-server"
 
       - name: Verify
         run: |
