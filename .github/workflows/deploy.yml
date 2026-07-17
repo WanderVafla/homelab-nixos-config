@@ -30,17 +30,7 @@ jobs:
           echo "${{ secrets.DEPLOY_KEY }}" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
           ssh-keyscan -H ${{ secrets.DEPLOY_HOST }} >> ~/.ssh/known_hosts 2>/dev/null || true
-
-      - name: Check Remoting
-        run: |
-          cd /etc/nixos && echo 'Checking remoting folder to repo' \
-          if ! ls -a | grep ".git"; then \
-            git init -b main
-            git remote add origin git@github.com:WanderVafla/homelab-nixos-config.git; \
-            git feach origin
-          if ! git remove -v | grep 'origin	git@github.com:WanderVafla/homelab-nixos-config.git (fetch)'; then \
-
-
+          
       - name: Deploy
         run: |
           ssh -i ~/.ssh/deploy_key \
