@@ -3,7 +3,7 @@ name: Deploy to Production
 on:
   push:
     branches:
-      - main
+      - DeployScriptFix
 
 jobs:
   deploy:
@@ -11,7 +11,7 @@ jobs:
     name: Deploy to homelab-server
     environment:
       name: production
-    
+
     steps:
       - uses: actions/checkout@v4
 
@@ -23,19 +23,25 @@ jobs:
         uses: tailscale/github-action@v2
         with:
           authkey: ${{ secrets.TAILSCALE_AUTH_KEY }}
-    
+
       - name: Setup SSH
         run: |
           mkdir -p ~/.ssh
           echo "${{ secrets.DEPLOY_KEY }}" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
           ssh-keyscan -H ${{ secrets.DEPLOY_HOST }} >> ~/.ssh/known_hosts 2>/dev/null || true
-
+          
       - name: Deploy
         run: |
           ssh -i ~/.ssh/deploy_key \
             ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} \
-            "cd ~/nixos-config && git pull && sudo nixos-rebuild switch --flake .#homelab-server"
+            "cd /etc/nixos && \
+            ([ -d .git ] || git init -b main) && \
+            (git remote set-url origin https://github.com/WanderVafla/homelab-nixos-config.git 2>/dev/null || \
+              git remote add origin https://github.com/WanderVafla/homelab-nixos-config.git) && \
+            git fetch origin main && \
+            git reset --hard origin/main && \
+            sudo nixos-rebuild switch --flake .#homelab-server"
 
       - name: Verify
         run: |
