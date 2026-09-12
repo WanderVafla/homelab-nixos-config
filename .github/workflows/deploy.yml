@@ -36,7 +36,7 @@ jobs:
           ssh -i ~/.ssh/deploy_key \
             ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} \
             "cd /etc/nixos && \
-             ([ -d .git ] || (git init -b main && git remote add origin git@github.com:procenkovladik2/homelab-nixos-config.git)) && \
+             ([ -d .git ] || (git init -b main && git remote add origin git@github.com:WanderVafla/homelab-nixos-config.git)) && \
              git fetch origin main && \
              git reset --hard origin/main && \
              (git branch -u origin/main main 2>/dev/null || true) && \
