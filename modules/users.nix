@@ -18,7 +18,7 @@
       users = [ "github_deploy" ];
       commands = [
         {
-          command = "${pkgs.nixos-rebuild}/bin/nixos-rebuild";
+          command = "/run/current-system/sw/bin/nixos-rebuild";
           options = [ "NOPASSWD" "SETENV" ];
         }
       ];
