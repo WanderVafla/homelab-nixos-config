@@ -9,6 +9,5 @@
     ./nix.nix
     ./power.nix
     ./packages.nix
-    ./drill-broken.nix
   ];
 }
