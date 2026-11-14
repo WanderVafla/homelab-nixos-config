@@ -1,6 +1,6 @@
 # Hermes agent settings. Evaluated inside the hermes container only, so changes here cannot affect the host.
 # This is the one directory the agent may change without owner approval.
-{ inputs, pkgs, ... }:
+{ config, inputs, pkgs, ... }:
 
 {
   imports = [
@@ -40,8 +40,9 @@
         user_profile_enabled = true;
       };
 
-      # Terminal commands get no secrets except the GitHub token (scoped to this repository).
-      terminal.env_passthrough = [ "GH_TOKEN" ];
+      # Terminal commands get no secrets except the repository token. Hermes never forwards
+      # GH_TOKEN or GITHUB_TOKEN (its own credentials), so the token uses a custom name.
+      terminal.env_passthrough = [ "HOMELAB_REPO_TOKEN" ];
     };
 
     # AGENTS.md tells the agent how to work with the homelab repository.
@@ -51,7 +52,7 @@
     hermesHomeFiles."SOUL.md" = ./SOUL.md;
 
     extraPackages = with pkgs; [
-      gh
+      config.homelab.gh
       git
       jq
     ];
