@@ -54,6 +54,7 @@
       gh
       git
       jq
+      ripgrep
     ];
   };
 }
