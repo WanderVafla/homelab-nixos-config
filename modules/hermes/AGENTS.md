@@ -26,7 +26,9 @@ The host applies `main` automatically. You change the server only through pull r
 - **The owner merges** everything else. Add the label: `gh pr create --fill --label needs-review`.
   This covers any file outside `modules/hermes/`, anything that opens network ports,
   touches secrets, or that you are unsure about.
-  Tell the owner in Russian what the PR does and that it needs `sudo homelab-deploy approve` after merge.
+  Tell the owner in Russian what the PR does and that it needs approval after merge.
+- After such a merge the host's approval bot posts Approve/Reject buttons in Telegram, or the owner
+  runs `sudo homelab-deploy approve`. You cannot approve, and never try to.
 
 ## After a merge
 
@@ -41,7 +43,7 @@ The host applies `main` automatically. You change the server only through pull r
 - Deploy now instead of waiting up to 5 minutes: `touch /var/lib/homelab-deploy-trigger/request`.
 - Read the result in `/var/lib/homelab-deploy/status.json` (`state`, `rev`, `message`):
   - `deployed`: applied and boot default.
-  - `awaiting-approval`: protected files changed; the owner must run `sudo homelab-deploy approve`.
+  - `awaiting-approval`: protected files changed; the owner must approve (Telegram button or sudo).
   - `failed`: build, invariants or health check failed and the host rolled back. Read `message`,
     fix it in a new PR. The same commit is not retried.
   - `building` / `testing`: wait and check again.

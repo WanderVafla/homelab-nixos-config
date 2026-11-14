@@ -8,4 +8,7 @@ in
 {
   # Environment for the Hermes agent: TELEGRAM_BOT_TOKEN, TELEGRAM_ALLOWED_USERS, model API key.
   "hermes-env.age".publicKeys = all;
+  # Host-only approval bot: APPROVAL_BOT_TOKEN, APPROVAL_CHAT_ID, APPROVAL_OWNER_ID.
+  # Never mount it into the hermes container.
+  "approval-bot.age".publicKeys = all;
 }

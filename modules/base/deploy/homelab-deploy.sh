@@ -196,29 +196,65 @@ cmd_run() {
   deploy "$rev"
 }
 
-cmd_approve() {
-  require_root
-  local rev base answer
-  local -a spec
-  mapfile -t spec < <(protected_pathspec)
+# Print the commit waiting for approval; exit 1 if there is none.
+pending_rev() {
+  local rev
   rev=$(read_file "$PENDING_FILE")
   if [[ -z $rev ]]; then
-    echo "Nothing is waiting for approval."
+    echo "Nothing is waiting for approval." >&2
     exit 1
   fi
+  echo "$rev"
+}
+
+# Record the approval of the protected files exactly as they are at this commit.
+approve_rev() { # rev
+  local approved_hash
+  approved_hash=$(protected_hash "$1") || { echo "Could not hash protected files." >&2; exit 1; }
+  echo "$approved_hash" >"$APPROVED_FILE"
+  rm -f "$PENDING_FILE" "$FAILED_FILE"
+}
+
+cmd_summary() {
+  require_root
+  local rev base
+  local -a spec
+  mapfile -t spec < <(protected_pathspec)
+  rev=$(pending_rev)
   base=$(read_file "$DEPLOYED_FILE")
   echo "Commit ${rev:0:7} changes protected files (everything except ${AGENT_PATHS[*]}):"
-  git -C "$REPO" --no-pager diff --stat "${base:-$EMPTY_TREE}" "$rev" -- "${spec[@]}"
+  git -C "$REPO" --no-pager diff --stat=72 "${base:-$EMPTY_TREE}" "$rev" -- "${spec[@]}"
+  if [[ -n $base ]]; then
+    echo "${REMOTE%.git}/compare/$base...$rev"
+  fi
+}
+
+# Without an argument: show the summary and ask on the terminal, then deploy in the foreground.
+# With a commit (used by the approval bot): approve only if exactly that commit is pending,
+# then start the deploy unit without waiting, so the caller may be restarted by the deploy.
+cmd_approve() { # [rev]
+  require_root
+  local rev base answer
+  rev=$(pending_rev)
+  base=$(read_file "$DEPLOYED_FILE")
+  if [[ -n ${1:-} ]]; then
+    if [[ $1 != "$rev" ]]; then
+      echo "Commit ${1:0:7} is not the one waiting for approval (${rev:0:7})." >&2
+      exit 1
+    fi
+    approve_rev "$rev"
+    systemctl start --no-block homelab-deploy.service
+    echo "Approved ${rev:0:7}; deploy started."
+    return
+  fi
+  cmd_summary
   echo "Full diff: sudo git -C $REPO diff ${base:-$EMPTY_TREE} $rev -- . ':(exclude)modules/hermes'"
   read -r -p "Approve and deploy ${rev:0:7}? [y/N] " answer
   if [[ $answer != y && $answer != Y ]]; then
     echo "Not approved."
     exit 1
   fi
-  local approved_hash
-  approved_hash=$(protected_hash "$rev") || { echo "Could not hash protected files." >&2; exit 1; }
-  echo "$approved_hash" >"$APPROVED_FILE"
-  rm -f "$PENDING_FILE" "$FAILED_FILE"
+  approve_rev "$rev"
   cmd_run
 }
 
@@ -237,11 +273,12 @@ cmd_status() {
 
 case "${1:-run}" in
   run) cmd_run ;;
-  approve) cmd_approve ;;
+  approve) cmd_approve "${2:-}" ;;
+  summary) cmd_summary ;;
   retry) cmd_retry ;;
   status) cmd_status ;;
   *)
-    echo "usage: homelab-deploy [run|approve|retry|status]" >&2
+    echo "usage: homelab-deploy [run|approve [rev]|summary|retry|status]" >&2
     exit 2
     ;;
 esac
