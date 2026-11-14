@@ -3,7 +3,10 @@
 { inputs, pkgs, ... }:
 
 {
-  imports = [ inputs.hermes-agent.nixosModules.default ];
+  imports = [
+    inputs.hermes-agent.nixosModules.default
+    ./git.nix
+  ];
 
   services.hermes-agent = {
     enable = true;
@@ -36,11 +39,19 @@
         memory_enabled = true;
         user_profile_enabled = true;
       };
+
+      # Terminal commands get no secrets except the GitHub token (scoped to this repository).
+      terminal.env_passthrough = [ "GH_TOKEN" ];
     };
+
+    # AGENTS.md tells the agent how to work with the homelab repository.
+    workingDirectory = "/var/lib/hermes/workspace";
+    documents."AGENTS.md" = ./AGENTS.md;
 
     hermesHomeFiles."SOUL.md" = ./SOUL.md;
 
     extraPackages = with pkgs; [
+      gh
       git
       jq
     ];
