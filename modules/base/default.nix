@@ -9,5 +9,6 @@
     ./tailscale.nix
     ./firewall.nix
     ./watchdog.nix
+    ./deploy
   ];
 }
