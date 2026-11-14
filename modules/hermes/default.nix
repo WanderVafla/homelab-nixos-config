@@ -14,6 +14,24 @@
     environmentFiles = [ "/run/secrets/hermes-env" ];
 
     settings = {
+      # Main model for conversation and planning. OPENROUTER_API_KEY comes from hermes-env.
+      model = {
+        provider = "openrouter";
+        default = "anthropic/claude-sonnet-5.5";
+      };
+
+      # Cheap model for side tasks instead of the main model.
+      auxiliary = pkgs.lib.genAttrs [ "compression" "title_generation" "vision" "approval" ] (_: {
+        provider = "openrouter";
+        model = "anthropic/claude-haiku-5.5";
+      });
+
+      # Subagents (delegate_task) write server configuration code; see SOUL.md.
+      delegation = {
+        provider = "openrouter";
+        model = "deepseek/deepseek-v4.1-flash";
+      };
+
       memory = {
         memory_enabled = true;
         user_profile_enabled = true;
