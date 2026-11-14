@@ -1,8 +1,12 @@
 # Pull deployer: every 5 minutes applies the newest commit of main with health checks and rollback.
-{ pkgs, ... }:
+{ config, lib, pkgs, ... }:
 
 let
   stateDir = "/var/lib/homelab-deploy";
+  triggerDir = "/var/lib/homelab-deploy-trigger";
+
+  # Units that must be active after a deploy, in addition to the built-in checks.
+  healthUnits = lib.optional (config.containers ? hermes) "container@hermes.service";
 
   homelab-deploy = pkgs.writeShellApplication {
     name = "homelab-deploy";
@@ -23,14 +27,17 @@ let
       HOST="homelab-server"
       ADMIN_USER="WanderVafla"
       STATE_DIR="${stateDir}"
+      TRIGGER_DIR="${triggerDir}"
       HEALTH_TIMEOUT=120
+      HEALTH_UNITS="${lib.concatStringsSep " " healthUnits}"
     '' + builtins.readFile ./homelab-deploy.sh;
   };
 in
 {
   environment.systemPackages = [ homelab-deploy ];
 
-  systemd.tmpfiles.rules = [ "d ${stateDir} 0750 root root -" ];
+  # Readable by everyone: status and revisions are not secret, and the hermes container reads them.
+  systemd.tmpfiles.rules = [ "d ${stateDir} 0755 root root -" ];
 
   systemd.services.homelab-deploy = {
     description = "Pull and apply homelab-nixos-config with rollback";
@@ -42,6 +49,15 @@ in
     serviceConfig = {
       Type = "oneshot";
       ExecStart = "${homelab-deploy}/bin/homelab-deploy run";
+    };
+  };
+
+  # Run a deploy as soon as a file appears in the trigger directory.
+  systemd.paths.homelab-deploy-trigger = {
+    wantedBy = [ "paths.target" ];
+    pathConfig = {
+      PathExistsGlob = "${triggerDir}/*";
+      Unit = "homelab-deploy.service";
     };
   };
 

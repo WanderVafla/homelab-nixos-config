@@ -1,7 +1,8 @@
 # Pull-based NixOS deployer: fetch -> approval gate -> build -> invariants -> test -> health check
 # -> promote to boot default, or roll back to the previous system.
 #
-# Settings (REMOTE, BRANCH, HOST, ADMIN_USER, STATE_DIR, HEALTH_TIMEOUT) are prepended by the Nix module.
+# Settings (REMOTE, BRANCH, HOST, ADMIN_USER, STATE_DIR, TRIGGER_DIR, HEALTH_TIMEOUT, HEALTH_UNITS)
+# are prepended by the Nix module.
 
 REPO="$STATE_DIR/repo"
 STATUS_FILE="$STATE_DIR/status.json"
@@ -12,8 +13,9 @@ APPROVED_FILE="$STATE_DIR/approved-protected-hash"
 PROFILE=/nix/var/nix/profiles/system
 EMPTY_TREE=4b825dc642cb6eb9a060e54bf8d69288fbee4904
 
-# Paths whose changes need the owner's approval on the server.
-PROTECTED_PATHS=(modules/base secrets)
+# Everything in the repository needs the owner's approval on the server, except these paths.
+# modules/hermes is evaluated inside the hermes container only, so it cannot affect the host.
+AGENT_PATHS=(modules/hermes)
 
 log() { echo "[homelab-deploy] $*" >&2; }
 
@@ -22,6 +24,7 @@ read_file() { cat "$1" 2>/dev/null || true; }
 write_status() { # state rev message
   jq -n --arg state "$1" --arg rev "$2" --arg message "$3" --arg time "$(date -Is)" \
     '{state: $state, rev: $rev, message: $message, time: $time}' >"$STATUS_FILE.tmp"
+  chmod 0644 "$STATUS_FILE.tmp"
   mv "$STATUS_FILE.tmp" "$STATUS_FILE"
   log "$1 ${2:0:7}: $3"
 }
@@ -47,13 +50,35 @@ sync_repo() {
   git -C "$REPO" rev-parse FETCH_HEAD
 }
 
-# Hash of the git trees of all protected paths at a commit.
-protected_hash() { # rev
-  local path out=""
-  for path in "${PROTECTED_PATHS[@]}"; do
-    out+="$path:$(git -C "$REPO" rev-parse --verify --quiet "$1:$path" || echo missing) "
+# Git pathspecs that select every protected file.
+protected_pathspec() {
+  local path
+  printf '%s\n' .
+  for path in "${AGENT_PATHS[@]}"; do
+    printf ':(exclude)%s\n' "$path"
   done
-  printf '%s' "$out" | sha256sum | cut -d' ' -f1
+}
+
+# True if a repository path belongs to the agent's paths.
+is_agent_path() { # path
+  local path
+  for path in "${AGENT_PATHS[@]}"; do
+    if [[ $1 == "$path" || $1 == "$path"/* ]]; then return 0; fi
+  done
+  return 1
+}
+
+# Hash of all protected files at a commit. Fails loudly if the commit cannot be listed.
+protected_hash() { # rev
+  local listing mode type object path
+  listing=$(git -C "$REPO" ls-tree -r --full-tree "$1") || return 1
+  [[ -n $listing ]] || return 1
+  while IFS=$'\t' read -r meta path; do
+    read -r mode type object <<<"$meta"
+    if ! is_agent_path "$path"; then
+      printf '%s %s %s\t%s\n' "$mode" "$type" "$object" "$path"
+    fi
+  done <<<"$listing" | sha256sum | cut -d' ' -f1
 }
 
 # Evaluate safety invariants of the new configuration; print the names of violated ones.
@@ -73,6 +98,10 @@ healthy() {
   systemctl is-active --quiet sshd || return 1
   ss -Hltn 'sport = :22' | grep -q . || return 1
   [[ -z $(systemctl list-units --state=failed --no-legend --plain) ]] || return 1
+  local unit
+  for unit in $HEALTH_UNITS; do
+    systemctl is-active --quiet "$unit" || return 1
+  done
 }
 
 wait_healthy() {
@@ -138,6 +167,9 @@ cmd_run() {
     return
   fi
 
+  # A trigger file has done its job once a run starts.
+  rm -f "$TRIGGER_DIR"/*
+
   local rev
   rev=$(sync_repo)
   if [[ $rev == "$(read_file "$DEPLOYED_FILE")" ]]; then
@@ -150,9 +182,14 @@ cmd_run() {
   fi
 
   git -C "$REPO" checkout --quiet --detach "$rev"
-  if [[ $(protected_hash "$rev") != "$(read_file "$APPROVED_FILE")" ]]; then
+  local hash
+  if ! hash=$(protected_hash "$rev"); then
+    fail "$rev" "could not hash protected files"
+    return
+  fi
+  if [[ $hash != "$(read_file "$APPROVED_FILE")" ]]; then
     echo "$rev" >"$PENDING_FILE"
-    write_status awaiting-approval "$rev" "protected paths changed; run: sudo homelab-deploy approve"
+    write_status awaiting-approval "$rev" "protected files changed; run: sudo homelab-deploy approve"
     return
   fi
 
@@ -162,21 +199,25 @@ cmd_run() {
 cmd_approve() {
   require_root
   local rev base answer
+  local -a spec
+  mapfile -t spec < <(protected_pathspec)
   rev=$(read_file "$PENDING_FILE")
   if [[ -z $rev ]]; then
     echo "Nothing is waiting for approval."
     exit 1
   fi
   base=$(read_file "$DEPLOYED_FILE")
-  echo "Commit ${rev:0:7} changes protected paths (${PROTECTED_PATHS[*]}):"
-  git -C "$REPO" --no-pager diff --stat "${base:-$EMPTY_TREE}" "$rev" -- "${PROTECTED_PATHS[@]}"
-  echo "Full diff: sudo git -C $REPO diff ${base:-$EMPTY_TREE} $rev -- ${PROTECTED_PATHS[*]}"
+  echo "Commit ${rev:0:7} changes protected files (everything except ${AGENT_PATHS[*]}):"
+  git -C "$REPO" --no-pager diff --stat "${base:-$EMPTY_TREE}" "$rev" -- "${spec[@]}"
+  echo "Full diff: sudo git -C $REPO diff ${base:-$EMPTY_TREE} $rev -- . ':(exclude)modules/hermes'"
   read -r -p "Approve and deploy ${rev:0:7}? [y/N] " answer
   if [[ $answer != y && $answer != Y ]]; then
     echo "Not approved."
     exit 1
   fi
-  protected_hash "$rev" >"$APPROVED_FILE"
+  local approved_hash
+  approved_hash=$(protected_hash "$rev") || { echo "Could not hash protected files." >&2; exit 1; }
+  echo "$approved_hash" >"$APPROVED_FILE"
   rm -f "$PENDING_FILE" "$FAILED_FILE"
   cmd_run
 }
