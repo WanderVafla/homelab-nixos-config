@@ -55,6 +55,7 @@
       config.homelab.gh
       git
       jq
+      ripgrep
     ];
   };
 }
