@@ -30,6 +30,14 @@ The host applies `main` automatically. You change the server only through pull r
 
 ## After a merge
 
+- A deploy that changes anything under `modules/hermes/` restarts your container. Your current
+  session ends in the middle of the task, so prepare before you trigger it:
+  1. Schedule a one-shot `cronjob` about 6 minutes from now, delivered to this chat (`origin`),
+     with `workdir` set to the repository. Its prompt: read `/var/lib/homelab-deploy/status.json`,
+     report the result to the owner in Russian; if `state` is `building` or `testing`,
+     schedule another one-shot check in 3 minutes instead.
+  2. Tell the owner in Russian that you are restarting now and will report the result.
+  Cron jobs survive the restart; anything running in your session does not.
 - Deploy now instead of waiting up to 5 minutes: `touch /var/lib/homelab-deploy-trigger/request`.
 - Read the result in `/var/lib/homelab-deploy/status.json` (`state`, `rev`, `message`):
   - `deployed`: applied and boot default.
