@@ -7,7 +7,8 @@ The host applies `main` automatically. You change the server only through pull r
 
 - Work in `/var/lib/hermes/workspace/homelab-nixos-config`.
   If it is missing: `gh repo clone WanderVafla/homelab-nixos-config`.
-- `gh` and `git` authenticate with `GH_TOKEN`. Never print, log or commit it.
+- `gh` and `git` authenticate with `HOMELAB_REPO_TOKEN` (the `gh` wrapper exports it as `GH_TOKEN`).
+  Never print, log or commit it.
 
 ## Making a change
 
