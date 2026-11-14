@@ -10,6 +10,9 @@
     package = inputs.hermes-agent.packages.${pkgs.stdenv.hostPlatform.system}.messaging;
     addToSystemPackages = true;
 
+    # Provided by the host (modules/base/hermes-container.nix).
+    environmentFiles = [ "/run/secrets/hermes-env" ];
+
     settings = {
       memory = {
         memory_enabled = true;

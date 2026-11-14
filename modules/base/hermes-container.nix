@@ -1,6 +1,6 @@
 # Isolated NixOS container for the Hermes agent.
 # The host decides what the container can see; the agent's own settings live in modules/hermes.
-{ inputs, ... }:
+{ config, inputs, ... }:
 
 let
   hermesUid = 2000;
@@ -14,6 +14,11 @@ in
     specialArgs = { inherit inputs; };
 
     bindMounts = {
+      # Agent environment (tokens, API keys). Decrypted by agenix on the host, root-only inside.
+      "/run/secrets/hermes-env" = {
+        hostPath = config.age.secrets.hermes-env.path;
+        isReadOnly = true;
+      };
       # Deployer state (status.json, revisions, public repo clone), read-only.
       "/var/lib/homelab-deploy" = {
         hostPath = "/var/lib/homelab-deploy";
@@ -36,9 +41,20 @@ in
       users.groups.hermes.gid = hermesUid;
 
       networking.useHostResolvConf = lib.mkForce false;
+      # No IPv6 route through the NAT, so resolve IPv4 addresses only.
+      networking.enableIPv6 = false;
       networking.nameservers = [ "1.1.1.1" "9.9.9.9" ];
     };
   };
+
+  age.secrets.hermes-env = {
+    file = ../../secrets/hermes-env.age;
+    mode = "0400";
+  };
+
+  # The bind mount pins the decrypted file at container start, so restart the container
+  # whenever the secret changes.
+  systemd.services."container@hermes".restartTriggers = [ config.age.secrets.hermes-env.file ];
 
   # Internet access for the container through the host, on Wi-Fi or Ethernet.
   networking.nat = {

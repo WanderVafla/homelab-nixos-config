@@ -6,6 +6,6 @@ let
   all = [ host owner ];
 in
 {
-  # No secrets yet. Example:
-  # "telegram-bot.age".publicKeys = all;
+  # Environment for the Hermes agent: TELEGRAM_BOT_TOKEN, TELEGRAM_ALLOWED_USERS, model API key.
+  "hermes-env.age".publicKeys = all;
 }
