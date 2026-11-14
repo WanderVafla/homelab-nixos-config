@@ -10,5 +10,6 @@
     ./firewall.nix
     ./watchdog.nix
     ./deploy
+    ./hermes-container.nix
   ];
 }
