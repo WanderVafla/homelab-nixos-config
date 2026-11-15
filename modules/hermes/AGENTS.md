@@ -27,6 +27,7 @@ The host applies `main` automatically. You change the server only through pull r
   This covers any file outside `modules/hermes/`, anything that opens network ports,
   touches secrets, or that you are unsure about.
   Tell the owner in Russian what the PR does and that it needs approval after merge.
+- Weekly `flake-update-*` PRs (from the flake-update workflow) belong to the owner. Leave them alone.
 - After such a merge the host's approval bot posts Approve/Reject buttons in Telegram, or the owner
   runs `sudo homelab-deploy approve`. You cannot approve, and never try to.
 
