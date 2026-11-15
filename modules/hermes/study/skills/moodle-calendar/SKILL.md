@@ -68,6 +68,7 @@ secret is missing and stop.
 
 ## Scheduled run
 
-The owner may ask for a daily run. Create it with the cron tool: schedule `0 18 * * *`, this
-skill attached, delivered to the chat it was requested from, prompt: "Run the moodle-calendar sync
-procedure and report the result."
+The owner wants a sync every Wednesday and Thursday at 16:00 (Europe/Zurich). When asked to set it
+up, create one job with the cron tool: schedule `0 16 * * 3,4`, this skill attached, delivered to
+the chat it was requested from, prompt: "Run the moodle-calendar sync procedure and report the
+result." Check the existing jobs first and do not create a duplicate.
