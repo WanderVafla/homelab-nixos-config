@@ -34,38 +34,47 @@ let
   };
 in
 {
-  environment.systemPackages = [ homelab-deploy ];
-
-  # Readable by everyone: status and revisions are not secret, and the hermes container reads them.
-  systemd.tmpfiles.rules = [ "d ${stateDir} 0755 root root -" ];
-
-  systemd.services.homelab-deploy = {
-    description = "Pull and apply homelab-nixos-config with rollback";
-    wants = [ "network-online.target" ];
-    after = [ "network-online.target" ];
-    # Never restart this unit during its own switch-to-configuration run.
-    restartIfChanged = false;
-    environment.HOME = "/root";
-    serviceConfig = {
-      Type = "oneshot";
-      ExecStart = "${homelab-deploy}/bin/homelab-deploy run";
-    };
+  options.homelab.deploy.package = lib.mkOption {
+    type = lib.types.package;
+    readOnly = true;
+    default = homelab-deploy;
+    description = "The homelab-deploy command, for other modules that call it.";
   };
 
-  # Run a deploy as soon as a file appears in the trigger directory.
-  systemd.paths.homelab-deploy-trigger = {
-    wantedBy = [ "paths.target" ];
-    pathConfig = {
-      PathExistsGlob = "${triggerDir}/*";
-      Unit = "homelab-deploy.service";
-    };
-  };
+  config = {
+    environment.systemPackages = [ homelab-deploy ];
 
-  systemd.timers.homelab-deploy = {
-    wantedBy = [ "timers.target" ];
-    timerConfig = {
-      OnBootSec = "3min";
-      OnUnitInactiveSec = "5min";
+    # Readable by everyone: status and revisions are not secret, and the hermes container reads them.
+    systemd.tmpfiles.rules = [ "d ${stateDir} 0755 root root -" ];
+
+    systemd.services.homelab-deploy = {
+      description = "Pull and apply homelab-nixos-config with rollback";
+      wants = [ "network-online.target" ];
+      after = [ "network-online.target" ];
+      # Never restart this unit during its own switch-to-configuration run.
+      restartIfChanged = false;
+      environment.HOME = "/root";
+      serviceConfig = {
+        Type = "oneshot";
+        ExecStart = "${homelab-deploy}/bin/homelab-deploy run";
+      };
+    };
+
+    # Run a deploy as soon as a file appears in the trigger directory.
+    systemd.paths.homelab-deploy-trigger = {
+      wantedBy = [ "paths.target" ];
+      pathConfig = {
+        PathExistsGlob = "${triggerDir}/*";
+        Unit = "homelab-deploy.service";
+      };
+    };
+
+    systemd.timers.homelab-deploy = {
+      wantedBy = [ "timers.target" ];
+      timerConfig = {
+        OnBootSec = "3min";
+        OnUnitInactiveSec = "5min";
+      };
     };
   };
 }

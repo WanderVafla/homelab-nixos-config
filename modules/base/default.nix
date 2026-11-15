@@ -10,6 +10,7 @@
     ./firewall.nix
     ./watchdog.nix
     ./deploy
+    ./approval-bot
     ./hermes-container.nix
   ];
 }
