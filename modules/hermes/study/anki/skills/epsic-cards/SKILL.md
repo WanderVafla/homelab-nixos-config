@@ -26,8 +26,8 @@ Your job: find new course material, write cards in the established style, add th
 ```bash
 anki-epsic list --sub i231            # existing cards (id, cat, kind, question) — check before writing
 anki-epsic add cards.json             # create or update by id; syncs before and after
-curl -s "http://127.0.0.1:8070/api/core_course_get_contents?courseid=1257"
-curl -s "http://127.0.0.1:8070/file?url=<fileurl>" -o lesson.pdf && pdftotext -layout lesson.pdf -
+curl -s "http://10.231.0.1:8070/api/core_course_get_contents?courseid=1257"
+curl -s "http://10.231.0.1:8070/file?url=<fileurl>" -o lesson.pdf && pdftotext -layout lesson.pdf -
 ```
 
 Courses: i231 = 1257, i162 = 2502, i122 = 1259 (deck "EPSIC::122 · Automatiser des procédures").

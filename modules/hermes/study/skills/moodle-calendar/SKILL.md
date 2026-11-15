@@ -22,7 +22,7 @@ read-only gateway and write deadlines into the Google calendar "EPSIC" with `gca
 
 ## Moodle gateway
 
-`curl -s "http://127.0.0.1:8070/api/<function>?<params>"` returns Moodle's JSON.
+`curl -s "http://10.231.0.1:8070/api/<function>?<params>"` returns Moodle's JSON.
 Array parameters use Moodle's form syntax: `courseids[0]=12&courseids[1]=15`.
 A 403 lists the allowed functions; a 503 means the owner has not added the token yet.
 
@@ -34,7 +34,7 @@ A 403 lists the allowed functions; a 503 means the owner has not added the token
 | Submitted or not | `mod_assign_get_submission_status?assignid=<id>` → `lastattempt.submission.status` |
 | Quizzes with dates | `mod_quiz_get_quizzes_by_courses?courseids[0]=<id>…` → `timeclose` |
 | Course sections, files | `core_course_get_contents?courseid=<id>` |
-| Download a file | `curl -s "http://127.0.0.1:8070/file?url=<fileurl>" -o <name>` |
+| Download a file | `curl -s "http://10.231.0.1:8070/file?url=<fileurl>" -o <name>` |
 
 Times from Moodle are Unix timestamps; pass them to `gcal` as `@<timestamp>`.
 
