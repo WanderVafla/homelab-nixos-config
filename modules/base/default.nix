@@ -14,5 +14,6 @@
     ./deploy
     ./approval-bot
     ./hermes-container.nix
+    ./study
   ];
 }
