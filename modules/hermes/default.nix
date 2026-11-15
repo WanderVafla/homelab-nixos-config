@@ -36,6 +36,9 @@
         model = "deepseek/deepseek-v4.1-flash";
       };
 
+      # Cron schedules and the time in the prompt follow the owner's clock; the host runs in UTC.
+      timezone = "Europe/Zurich";
+
       memory = {
         memory_enabled = true;
         user_profile_enabled = true;
