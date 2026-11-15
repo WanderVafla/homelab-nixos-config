@@ -9,6 +9,7 @@
     ./ssh.nix
     ./tailscale.nix
     ./firewall.nix
+    ./machined.nix
     ./watchdog.nix
     ./deploy
     ./approval-bot
