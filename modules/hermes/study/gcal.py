@@ -55,13 +55,13 @@ def parse_when(text):
     else:
         day = date.fromisoformat(text)
         return {"date": day.isoformat()}, day
-    return {"dateTime": moment.replace(tzinfo=None).isoformat(timespec="minutes"), "timeZone": str(ZONE)}, moment
+    return {"dateTime": moment.replace(tzinfo=None).isoformat(timespec="seconds"), "timeZone": str(ZONE)}, moment
 
 
 def default_end(start):
     if isinstance(start, datetime):
         end = start + timedelta(minutes=30)
-        return {"dateTime": end.replace(tzinfo=None).isoformat(timespec="minutes"), "timeZone": str(ZONE)}
+        return {"dateTime": end.replace(tzinfo=None).isoformat(timespec="seconds"), "timeZone": str(ZONE)}
     return {"date": (start + timedelta(days=1)).isoformat()}  # all-day end is exclusive
 
 
@@ -152,7 +152,8 @@ def main():
     try:
         {"list": cmd_list, "upsert": cmd_upsert, "delete": cmd_delete}[args.command](session, url, args)
     except Exception as error:  # report API errors as JSON for the agent
-        fail(str(error))
+        details = getattr(getattr(error, "response", None), "text", "")
+        fail(f"{error} {details}".strip())
 
 
 if __name__ == "__main__":
