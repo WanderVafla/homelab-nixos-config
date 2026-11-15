@@ -30,8 +30,9 @@ A 403 lists the allowed functions; a 503 means the owner has not added the token
 |---|---|
 | Own user id | `core_webservice_get_site_info` → `userid` |
 | Courses | `core_enrol_get_users_courses?userid=<id>` |
-| Upcoming deadlines (assignments, quizzes…) | `core_calendar_get_action_events_by_timesort?timesortfrom=<now>&timesortto=<now+60d>&limitnum=50` |
-| Assignment details | `mod_assign_get_assignments?courseids[0]=<id>` |
+| Assignments with dates | `mod_assign_get_assignments?courseids[0]=<id>&courseids[1]=<id>…` |
+| Submitted or not | `mod_assign_get_submission_status?assignid=<id>` → `lastattempt.submission.status` |
+| Quizzes with dates | `mod_quiz_get_quizzes_by_courses?courseids[0]=<id>…` → `timeclose` |
 | Course sections, files | `core_course_get_contents?courseid=<id>` |
 | Download a file | `curl -s "http://127.0.0.1:8070/file?url=<fileurl>" -o <name>` |
 
@@ -50,16 +51,30 @@ A timed event without `--end` lasts 30 minutes; a deadline event starts at the d
 
 ## Sync procedure
 
-1. Get `userid`, then the courses (keep `id` → `shortname`/`fullname`).
-2. Get action events for the next 60 days.
-3. For each event, `gcal upsert`:
-   - key: `moodle-<modulename>-<instance>` (stable across runs);
-   - title: `📚 <course shortname>: <event name>`;
-   - start: `@<timesort>`;
-   - description: course full name and the event `url`.
-4. `gcal list` for the same window. Delete events whose key starts with `moodle-` and is no longer
-   in Moodle's list (the work was submitted or the deadline was removed).
-5. Report to the owner in Russian, short: what was added, changed and removed, then the deadlines
+EPSIC teachers usually leave the assignment **due date empty** and set only the **cut-off date**
+("date limite"), so Moodle's calendar and timeline stay empty. Read the dates from the
+assignments themselves.
+
+The owner is in class **DEVA 1A**. Some courses have one assignment per class: skip assignments
+whose name names another class (for example `EXPI1A`, `EXPI 1A`).
+
+1. Get `userid`, then the courses (keep `id` → `shortname`/`fullname`). Skip finished modules
+   (i431, course 1254) and the duplicate course 2834.
+2. Assignments: `mod_assign_get_assignments` for all those courses. Deadline = `duedate`, or
+   `cutoffdate` when `duedate` is 0; skip assignments with neither. If the deadline is exactly
+   00:00, use one minute earlier (the work is due the evening before).
+3. Quizzes: `mod_quiz_get_quizzes_by_courses`; deadline = `timeclose` (skip 0).
+4. Keep deadlines from now to now + 60 days. For assignments, check
+   `mod_assign_get_submission_status`: status `submitted` means done.
+5. For each open item, `gcal upsert`:
+   - key: `moodle-assign-<assignment id>` or `moodle-quiz-<quiz id>` (stable across runs);
+   - title: `📚 <course shortname without the "i21-" prefix>: <name>`;
+   - start: `@<deadline>`;
+   - description: course full name and the link `https://moodle.epsic.ch/mod/assign/view.php?id=<cmid>`
+     (`mod/quiz/view.php` for quizzes).
+6. `gcal list` for the same window. Delete events whose key starts with `moodle-` and that are
+   no longer open (submitted, deadline removed or moved out of the window).
+7. Report to the owner in Russian, short: what was added, changed and removed, then the deadlines
    of the next 7 days as a list (`дд.мм чч:мм — курс: задание`). If nothing changed, say so in
    one line plus the 7-day list.
 
