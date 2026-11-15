@@ -19,10 +19,7 @@ let
   } (builtins.readFile ./anki_epsic.py);
 in
 {
-  services.hermes-agent = {
-    extraPackages = [ anki-epsic pkgs.poppler-utils ];
-    hermesHomeFiles."skills/epsic-cards/SKILL.md" = ./skills/epsic-cards/SKILL.md;
-  };
+  services.hermes-agent.extraPackages = [ anki-epsic pkgs.poppler-utils ];
 
   systemd.tmpfiles.rules = [ "d ${collectionDir} 0700 hermes hermes -" ];
 }

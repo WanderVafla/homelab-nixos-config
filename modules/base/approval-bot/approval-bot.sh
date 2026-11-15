@@ -1,5 +1,6 @@
 # Telegram approval bot: posts every commit that waits for approval with Approve/Reject buttons,
 # approves it when the owner presses Approve, and reports approved deploys and every failed one.
+# It also runs the skill watcher (skill-watch.sh, prepended by the Nix module).
 #
 # Settings (STATE_DIR, DEPLOY_STATE_DIR) are prepended by the Nix module. The environment file
 # provides APPROVAL_BOT_TOKEN, APPROVAL_CHAT_ID and APPROVAL_OWNER_ID. Without the two IDs the
@@ -125,6 +126,9 @@ on_callback() { # callback_query json
 
 Отклонено. Следующий коммит в main снова придёт на одобрение."
       ;;
+    sk)
+      on_skill_button "$id" "$chat" "$message_id" "$text" "$data" || answer "$id" "Ошибка, см. журнал бота"
+      ;;
     *) answer "$id" "Неизвестная кнопка" ;;
   esac
 }
@@ -150,6 +154,7 @@ main() {
     if configured; then
       notify_pending
       report_status
+      scan_skills || log "skill watch failed"
     fi
     if ! updates=$(api getUpdates "$(jq -nc --argjson offset "${offset:-0}" \
       '{offset: $offset, timeout: 25, allowed_updates: ["message", "callback_query"]}')"); then

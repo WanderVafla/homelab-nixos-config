@@ -1,7 +1,7 @@
-# Telegram bot that lets the owner approve protected deploys with a button.
-# It runs on the host with its own token; the hermes container never sees that token,
-# so the agent cannot approve its own changes.
-{ config, pkgs, ... }:
+# Telegram bot that lets the owner approve protected deploys with a button, and reports the
+# agent's skill changes with a rollback button. It runs on the host with its own token; the
+# hermes container never sees that token, so the agent cannot approve its own changes.
+{ config, inputs, lib, pkgs, ... }:
 
 let
   stateDir = "/var/lib/homelab-approval-bot";
@@ -11,13 +11,24 @@ let
     runtimeInputs = with pkgs; [
       coreutils
       curl
+      diffutils
+      findutils
+      gawk
+      gnugrep
+      gnutar
       jq
+      util-linux
       config.homelab.deploy.package
     ];
     text = ''
       STATE_DIR="${stateDir}"
       DEPLOY_STATE_DIR="/var/lib/homelab-deploy"
-    '' + builtins.readFile ./approval-bot.sh;
+      # The agent's skills as seen from the host (the container's root is nixos-containers/hermes).
+      SKILLS_DIR="/var/lib/nixos-containers/hermes/var/lib/hermes/.hermes/skills"
+      BUNDLED_SKILLS="${inputs.hermes-agent}/skills"
+      PROTECTED_SKILLS="${lib.concatStringsSep " " (lib.attrNames (builtins.readDir ../hermes-policy/skills))}"
+      HERMES_UID=2000 # users.users.hermes.uid in ../hermes-container.nix
+    '' + builtins.readFile ./skill-watch.sh + builtins.readFile ./approval-bot.sh;
   };
 in
 {

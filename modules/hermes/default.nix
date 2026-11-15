@@ -1,11 +1,14 @@
-# Hermes agent settings. Evaluated inside the hermes container only, so changes here cannot affect the host.
-# This is the one directory the agent may change without owner approval.
+# Hermes agent settings, evaluated inside the hermes container. Protected like the rest of the
+# repository: Nix here runs as root in the container. The agent may merge by itself only Markdown
+# in ./agent-skills; its instructions (AGENTS.md, SOUL.md, the owner's skills) are mounted
+# read-only by the host from modules/base/hermes-policy.
 { config, inputs, pkgs, ... }:
 
 {
   imports = [
     inputs.hermes-agent.nixosModules.default
     ./git.nix
+    ./agent-skills.nix
     ./study
   ];
 
@@ -50,11 +53,8 @@
       terminal.env_passthrough = [ "HOMELAB_REPO_TOKEN" "GOOGLE_CALENDAR_ID" ];
     };
 
-    # AGENTS.md tells the agent how to work with the homelab repository.
+    # AGENTS.md is mounted here by the host (modules/base/hermes-policy).
     workingDirectory = "/var/lib/hermes/workspace";
-    documents."AGENTS.md" = ./AGENTS.md;
-
-    hermesHomeFiles."SOUL.md" = ./SOUL.md;
 
     extraPackages = with pkgs; [
       config.homelab.gh

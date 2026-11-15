@@ -13,9 +13,10 @@ APPROVED_FILE="$STATE_DIR/approved-protected-hash"
 PROFILE=/nix/var/nix/profiles/system
 EMPTY_TREE=4b825dc642cb6eb9a060e54bf8d69288fbee4904
 
-# Everything in the repository needs the owner's approval on the server, except these paths.
-# modules/hermes is evaluated inside the hermes container only, so it cannot affect the host.
-AGENT_PATHS=(modules/hermes)
+# Everything in the repository needs the owner's approval, except Markdown files under this
+# directory: the agent's own skills. Text cannot run code; any Nix file, even one inside the
+# container config, can run code as root in the container and read the secrets mounted there.
+AGENT_SKILLS_DIR=modules/hermes/agent-skills
 
 log() { echo "[homelab-deploy] $*" >&2; }
 
@@ -52,20 +53,12 @@ sync_repo() {
 
 # Git pathspecs that select every protected file.
 protected_pathspec() {
-  local path
-  printf '%s\n' .
-  for path in "${AGENT_PATHS[@]}"; do
-    printf ':(exclude)%s\n' "$path"
-  done
+  printf '%s\n' . ":(exclude,glob)$AGENT_SKILLS_DIR/**/*.md"
 }
 
-# True if a repository path belongs to the agent's paths.
+# True if a repository path is one the agent may change: a Markdown file in its skills directory.
 is_agent_path() { # path
-  local path
-  for path in "${AGENT_PATHS[@]}"; do
-    if [[ $1 == "$path" || $1 == "$path"/* ]]; then return 0; fi
-  done
-  return 1
+  [[ $1 == "$AGENT_SKILLS_DIR"/*.md ]]
 }
 
 # Hash of all protected files at a commit. Fails loudly if the commit cannot be listed.
@@ -222,7 +215,7 @@ cmd_summary() {
   mapfile -t spec < <(protected_pathspec)
   rev=$(pending_rev)
   base=$(read_file "$DEPLOYED_FILE")
-  echo "Commit ${rev:0:7} changes protected files (everything except ${AGENT_PATHS[*]}):"
+  echo "Commit ${rev:0:7} changes protected files (everything except Markdown in $AGENT_SKILLS_DIR):"
   git -C "$REPO" --no-pager diff --stat=72 "${base:-$EMPTY_TREE}" "$rev" -- "${spec[@]}"
   if [[ -n $base ]]; then
     echo "${REMOTE%.git}/compare/$base...$rev"
@@ -248,7 +241,7 @@ cmd_approve() { # [rev]
     return
   fi
   cmd_summary
-  echo "Full diff: sudo git -C $REPO diff ${base:-$EMPTY_TREE} $rev -- . ':(exclude)modules/hermes'"
+  echo "Full diff: sudo git -C $REPO diff ${base:-$EMPTY_TREE} $rev -- . ':(exclude,glob)$AGENT_SKILLS_DIR/**/*.md'"
   read -r -p "Approve and deploy ${rev:0:7}? [y/N] " answer
   if [[ $answer != y && $answer != Y ]]; then
     echo "Not approved."
