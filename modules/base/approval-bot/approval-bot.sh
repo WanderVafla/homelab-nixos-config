@@ -1,5 +1,5 @@
 # Telegram approval bot: posts every commit that waits for approval with Approve/Reject buttons,
-# approves it when the owner presses Approve, and reports the deploy result.
+# approves it when the owner presses Approve, and reports approved deploys and every failed one.
 #
 # Settings (STATE_DIR, DEPLOY_STATE_DIR) are prepended by the Nix module. The environment file
 # provides APPROVAL_BOT_TOKEN, APPROVAL_CHAT_ID and APPROVAL_OWNER_ID. Without the two IDs the
@@ -8,6 +8,7 @@
 OFFSET_FILE="$STATE_DIR/offset"
 NOTIFIED_FILE="$STATE_DIR/notified-rev"
 WATCH_FILE="$STATE_DIR/watch"
+REPORTED_FILE="$STATE_DIR/reported-status"
 PENDING_FILE="$DEPLOY_STATE_DIR/pending-rev"
 STATUS_FILE="$DEPLOY_STATE_DIR/status.json"
 
@@ -60,21 +61,32 @@ $summary" "$buttons"; then
   fi
 }
 
-# After an approval, report the deploy once it has finished.
-report_result() {
-  local state rev message
-  [[ -f $WATCH_FILE && $STATUS_FILE -nt $WATCH_FILE ]] || return 0
+# Report finished deploys once each: every failure, and the result of a deploy you approved.
+report_status() {
+  local time state rev message
+  [[ -f $STATUS_FILE ]] || return 0
+  time=$(jq -r .time "$STATUS_FILE")
+  if [[ $time == "$(read_file "$REPORTED_FILE")" ]]; then return 0; fi
   state=$(jq -r .state "$STATUS_FILE")
-  case $state in
-    deployed | failed | awaiting-approval) ;;
-    *) return 0 ;;
-  esac
   rev=$(jq -r .rev "$STATUS_FILE")
   message=$(jq -r .message "$STATUS_FILE")
-  if send "$APPROVAL_CHAT_ID" "Деплой ${rev:0:7}: $state
-$message"; then
-    rm -f "$WATCH_FILE"
-  fi
+  case $state in
+    failed)
+      send "$APPROVAL_CHAT_ID" "Деплой ${rev:0:7} не прошёл: $message
+Нужен новый коммит с исправлением или: sudo homelab-deploy retry" || return 0
+      rm -f "$WATCH_FILE"
+      ;;
+    deployed)
+      if [[ -f $WATCH_FILE ]]; then
+        send "$APPROVAL_CHAT_ID" "Деплой ${rev:0:7}: deployed
+$message" || return 0
+        rm -f "$WATCH_FILE"
+      fi
+      ;;
+    awaiting-approval) ;; # notify_pending posts the buttons
+    *) return 0 ;;        # still running: report when it finishes
+  esac
+  echo "$time" >"$REPORTED_FILE"
 }
 
 on_callback() { # callback_query json
@@ -137,7 +149,7 @@ main() {
   while true; do
     if configured; then
       notify_pending
-      report_result
+      report_status
     fi
     if ! updates=$(api getUpdates "$(jq -nc --argjson offset "${offset:-0}" \
       '{offset: $offset, timeout: 25, allowed_updates: ["message", "callback_query"]}')"); then

@@ -1,0 +1,61 @@
+# Weekly `nix flake update` as a pull request.
+# It pushes with FLAKE_UPDATE_TOKEN (a fine-grained token: Contents, Pull requests, Issues
+# read/write), because pushes made with the default GITHUB_TOKEN do not trigger the CI check.
+# The owner merges the PR; the host then waits for approval in Telegram, builds,
+# health-checks and rolls back on failure.
+name: Update flake inputs
+
+on:
+  schedule:
+    - cron: "0 4 * * 1" # Mondays 04:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    name: Update flake.lock
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.FLAKE_UPDATE_TOKEN }}
+
+      - uses: cachix/install-nix-action@v25
+
+      - name: Update inputs
+        id: update
+        run: |
+          nix flake update 2>&1 | tee update.log
+          if git diff --quiet flake.lock; then
+            echo "changed=false" >>"$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >>"$GITHUB_OUTPUT"
+          fi
+
+      - name: Open pull request
+        if: steps.update.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.FLAKE_UPDATE_TOKEN }}
+        run: |
+          day=$(date -u +%F)
+          branch="flake-update-$day"
+          git config user.name "flake-update"
+          git config user.email "flake-update@users.noreply.github.com"
+          git switch -c "$branch"
+          git commit -m "Update flake inputs $day" flake.lock
+          git push origin "$branch"
+          {
+            echo "Weekly \`nix flake update\`."
+            echo
+            echo '```'
+            head -n 60 update.log
+            echo '```'
+            echo
+            echo "Merge after CI is green, then approve the deploy in Telegram."
+            echo "The host health-checks the new system and rolls back on failure."
+          } >body.md
+          gh pr create --base main --head "$branch" --title "Update flake inputs $day" \
+            --body-file body.md --label needs-review
