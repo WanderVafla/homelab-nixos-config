@@ -7,20 +7,22 @@ post in forums), so the allowlist is the boundary that keeps the agent read-only
   GET /api/<function>?<params>    Moodle REST call, JSON response
   GET /file?url=<pluginfile url>  download a course file through the web service
 
-Settings come from the environment: MOODLE_URL, MOODLE_TOKEN_FILE, MOODLE_ALLOWED_FUNCTIONS
-(space separated) and PORT.
+Settings come from the environment: MOODLE_URL, MOODLE_ALLOWED_FUNCTIONS (space separated),
+HOST and PORT. The token is the systemd credential "moodle-token".
 """
 
 import json
 import os
+import socket
 import urllib.error
 import urllib.parse
 import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 MOODLE = os.environ["MOODLE_URL"].rstrip("/")
-TOKEN_FILE = os.environ["MOODLE_TOKEN_FILE"]
+TOKEN_FILE = os.path.join(os.environ["CREDENTIALS_DIRECTORY"], "moodle-token")
 ALLOWED = set(os.environ["MOODLE_ALLOWED_FUNCTIONS"].split())
+HOST = os.environ.get("HOST", "127.0.0.1")
 PORT = int(os.environ.get("PORT", "8070"))
 PLACEHOLDER = "REPLACE_ME"
 # Parameters the caller may not set: they would replace the token or the function name.
@@ -35,6 +37,14 @@ def read_token():
     except OSError:
         return None
     return None if token in ("", PLACEHOLDER) else token
+
+
+class Server(ThreadingHTTPServer):
+    def server_bind(self):
+        # The address belongs to the container's veth link, which appears only when the
+        # container starts; freebind lets the gateway listen on it before that.
+        self.socket.setsockopt(socket.IPPROTO_IP, socket.IP_FREEBIND, 1)
+        super().server_bind()
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -105,4 +115,4 @@ class Handler(BaseHTTPRequestHandler):
 
 
 if __name__ == "__main__":
-    ThreadingHTTPServer(("127.0.0.1", PORT), Handler).serve_forever()
+    Server((HOST, PORT), Handler).serve_forever()

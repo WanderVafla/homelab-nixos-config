@@ -1,5 +1,5 @@
 # Study tools for the agent: the gcal calendar tool, the moodle-calendar skill and Anki cards.
-# The Moodle gateway itself is in the protected layer (modules/base/study).
+# The Moodle gateway itself runs on the host (modules/base/study), at http://10.231.0.1:8070.
 { pkgs, ... }:
 
 let

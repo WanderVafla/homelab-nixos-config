@@ -1,10 +1,10 @@
-# Read-only Moodle gateway, running inside the hermes container under its own user.
-# The agent calls http://127.0.0.1:8070 and never reads the token. This file lives in the
-# protected layer, so the agent cannot widen the allowlist without the owner's approval.
-{ lib, pkgs, ... }:
+# Read-only Moodle gateway, running on the host. The token never enters the hermes container:
+# the agent calls the gateway over its veth link (http://<hostAddress>:8070), and nothing the
+# agent can change (modules/hermes) is able to read the token or widen the allowlist.
+{ config, lib, pkgs, ... }:
 
 let
-  gatewayUid = 2001; # must match the owner of the moodle-token secret in ./default.nix
+  port = 8070;
 
   gateway = pkgs.writers.writePython3Bin "moodle-gateway" { flakeIgnore = [ "E501" ]; }
     (builtins.readFile ./moodle_gateway.py);
@@ -33,34 +33,45 @@ let
   ];
 in
 {
-  users.users.moodle-gateway = {
-    isSystemUser = true;
-    uid = gatewayUid;
-    group = "moodle-gateway";
+  # Root-only on the host; systemd hands a copy to the gateway as a credential.
+  age.secrets.moodle-token = {
+    file = ../../../secrets/moodle-token.age;
+    mode = "0400";
   };
-  users.groups.moodle-gateway.gid = gatewayUid;
 
   systemd.services.moodle-gateway = {
     description = "Read-only Moodle API gateway for the agent";
     wantedBy = [ "multi-user.target" ];
     wants = [ "network-online.target" ];
     after = [ "network-online.target" ];
+    restartTriggers = [ config.age.secrets.moodle-token.file ];
     environment = {
       MOODLE_URL = "https://moodle.epsic.ch";
-      MOODLE_TOKEN_FILE = "/run/secrets/moodle-token";
       MOODLE_ALLOWED_FUNCTIONS = lib.concatStringsSep " " allowedFunctions;
-      PORT = "8070";
+      HOST = config.containers.hermes.hostAddress;
+      PORT = toString port;
     };
     serviceConfig = {
       ExecStart = "${gateway}/bin/moodle-gateway";
-      User = "moodle-gateway";
-      Group = "moodle-gateway";
+      LoadCredential = "moodle-token:${config.age.secrets.moodle-token.path}";
+      DynamicUser = true;
       Restart = "always";
       RestartSec = 10;
       NoNewPrivileges = true;
       ProtectSystem = "strict";
       ProtectHome = true;
       PrivateTmp = true;
+      PrivateDevices = true;
+      ProtectKernelTunables = true;
+      ProtectKernelModules = true;
+      ProtectControlGroups = true;
+      RestrictAddressFamilies = [ "AF_INET" "AF_INET6" ];
+      CapabilityBoundingSet = "";
+      SystemCallFilter = [ "@system-service" ];
     };
   };
+
+  # Reachable from the hermes container only: the LAN firewall keeps the port closed, and the
+  # gateway listens on the veth address, not on the tailnet.
+  networking.firewall.interfaces."ve-hermes".allowedTCPPorts = [ port ];
 }
