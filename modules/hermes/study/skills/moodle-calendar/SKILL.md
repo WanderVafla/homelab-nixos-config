@@ -68,7 +68,8 @@ secret is missing and stop.
 
 ## Scheduled run
 
-The owner wants a sync every Wednesday and Thursday at 16:00 (Europe/Zurich). When asked to set it
-up, create one job with the cron tool: schedule `0 16 * * 3,4`, this skill attached, delivered to
-the chat it was requested from, prompt: "Run the moodle-calendar sync procedure and report the
-result." Check the existing jobs first and do not create a duplicate.
+The owner wants the study sync every Wednesday and Thursday at 16:00 (Europe/Zurich). When asked
+to set it up, create one job with the cron tool: schedule `0 16 * * 3,4`, skills `moodle-calendar`
+and `epsic-cards` attached, delivered to the chat it was requested from, prompt: "Run the
+moodle-calendar sync, then look for new course material with epsic-cards, and report both results
+in one message." Check the existing jobs first and do not create a duplicate.

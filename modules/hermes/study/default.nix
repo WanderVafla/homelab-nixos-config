@@ -1,4 +1,4 @@
-# Study tools for the agent: the gcal calendar tool and the moodle-calendar skill.
+# Study tools for the agent: the gcal calendar tool, the moodle-calendar skill and Anki cards.
 # The Moodle gateway itself is in the protected layer (modules/base/study).
 { pkgs, ... }:
 
@@ -10,6 +10,8 @@ let
   } (builtins.readFile ./gcal.py);
 in
 {
+  imports = [ ./anki ];
+
   services.hermes-agent = {
     extraPackages = [ gcal pkgs.curl ];
     hermesHomeFiles."skills/moodle-calendar/SKILL.md" = ./skills/moodle-calendar/SKILL.md;

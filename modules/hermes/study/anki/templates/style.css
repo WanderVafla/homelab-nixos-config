@@ -1,0 +1,42 @@
+/* EPSIC cards: same look as Quiz EPSIC, light and dark (Anki sets .nightMode). */
+.card {
+  --ink: #17212e; --muted: #5a6676; --rule: #cfd6df; --paper: #eef1f4; --sheet: #fbfcfd;
+  --stamp: #b42335; --ok: #2f7d4a; --ok-bg: #e3f2e8; --bad: #b42335; --bad-bg: #f8e4e6; --hard: #a8620a;
+  --s231: #7a3fa0; --s162: #1d7a8c; --s431: #a8620a; --secg: #3f6fb0;
+  font-family: Georgia, "Source Serif 4", serif; font-size: 19px; line-height: 1.45;
+  color: var(--ink); background: var(--sheet); text-align: left;
+}
+.card.nightMode, .nightMode .card {
+  --ink: #e5e9ef; --muted: #9aa5b4; --rule: #2e3846; --paper: #12171e; --sheet: #1a212b;
+  --stamp: #f0707e; --ok: #6cc28a; --ok-bg: #1b3326; --bad: #f0707e; --bad-bg: #3a1d22; --hard: #e3a54d;
+  --s231: #c49ae0; --s162: #6cc5d4; --s431: #e3a54d; --secg: #8fb4e6;
+}
+.epsic { max-width: 680px; margin: 0 auto; padding: 8px 4px; }
+.epsic[data-sub="i231"] { --sc: var(--s231); }
+.epsic[data-sub="i162"] { --sc: var(--s162); }
+.epsic[data-sub="i431"] { --sc: var(--s431); }
+.epsic[data-sub="ecg"] { --sc: var(--secg); }
+.meta { display: flex; justify-content: space-between; gap: 8px; font: 600 12px ui-monospace, Menlo, monospace;
+  letter-spacing: .06em; text-transform: uppercase; color: var(--muted); border-top: 4px solid var(--sc, var(--rule));
+  padding-top: 8px; margin-bottom: 12px; }
+.meta .subj { color: var(--sc, var(--muted)); }
+.q { font-size: 21px; margin-bottom: 16px; }
+.fr { font-family: "Helvetica Neue", Arial, sans-serif; font-weight: 700; color: var(--stamp); }
+.opts { display: grid; gap: 8px; }
+.opt { display: block; width: 100%; text-align: left; font: 17px Georgia, serif; color: var(--ink); background: var(--paper);
+  border: 1.5px solid var(--rule); border-radius: 6px; padding: 10px 12px; }
+.opt.right { background: var(--ok-bg); border-color: var(--ok); }
+.opt.wrong { background: var(--bad-bg); border-color: var(--bad); }
+.opt.dim { opacity: .55; }
+.typed { display: flex; gap: 8px; }
+.answer-in { flex: 1; min-width: 0; font: 18px Georgia, serif; color: var(--ink); background: var(--paper);
+  border: 1.5px solid var(--rule); border-radius: 6px; padding: 10px 12px; }
+.opt.check { width: auto; font-weight: 600; }
+.result { border-radius: 8px; padding: 10px 14px; margin-top: 12px; }
+.result.ok { background: var(--ok-bg); } .result.bad { background: var(--bad-bg); }
+.result .note { color: var(--hard); font-size: 15px; }
+.answer { font-size: 20px; margin: 8px 0; }
+.fact { margin-top: 12px; border: 1px dashed var(--rule); border-radius: 8px; padding: 10px 14px; }
+.fact p { margin: 0 0 4px; font-size: 16px; }
+.fact small { font: 12px ui-monospace, Menlo, monospace; color: var(--muted); }
+hr#answer { border: 0; border-top: 1px solid var(--rule); margin: 16px 0; }
