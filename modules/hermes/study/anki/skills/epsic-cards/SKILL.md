@@ -9,7 +9,7 @@ metadata:
 
 # New Moodle material → EPSIC flashcards in Anki
 
-The owner (Vladyslav, allophone, learns in French) studies EPSIC modules 231, 162, 431 and later
+The owner (Vladyslav, allophone, learns in French) studies EPSIC modules 231, 162, 122 and later
 ECG. He reviews flashcards in Anki on his phone; the decks sync through the homelab server.
 Your job: find new course material, write cards in the established style, add them with
 `anki-epsic`, report in Russian.
@@ -30,7 +30,8 @@ curl -s "http://127.0.0.1:8070/api/core_course_get_contents?courseid=1257"
 curl -s "http://127.0.0.1:8070/file?url=<fileurl>" -o lesson.pdf && pdftotext -layout lesson.pdf -
 ```
 
-Courses: i231 = 1257, i162 = 2502, i431 = 1254 (skip 2834, it duplicates i231).
+Courses: i231 = 1257, i162 = 2502, i122 = 1259 (deck "EPSIC::122 · Automatiser des procédures").
+Skip 2834 (duplicates i231) and i431 = 1254: that module is finished.
 
 ## Finding new material
 
