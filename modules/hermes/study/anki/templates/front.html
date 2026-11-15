@@ -1,0 +1,131 @@
+<div class="epsic" data-sub="{{Subject}}">
+  <div class="meta"><span class="subj">{{Subject}}</span><span>{{Category}}</span></div>
+  <div class="q">{{Question}}</div>
+  <div id="epsic-area" data-kind="{{Kind}}" data-id="{{Id}}"></div>
+</div>
+<script type="application/json" id="epsic-accepted">{{Accepted}}</script>
+<script type="application/json" id="epsic-options">{{Options}}</script>
+<template id="epsic-answer">{{Answer}}</template>
+<template id="epsic-fact">{{Fact}}</template>
+<template id="epsic-source">{{Source}}</template>
+<script>
+(function () {
+  // Interactive part of an EPSIC card: choose an option or type the answer, then grade in Anki.
+  // Answer checking follows Quiz EPSIC: accents, articles and brackets are ignored for French,
+  // word stems are compared for Russian, digits only for numbers.
+  var area = document.getElementById("epsic-area");
+  if (!area || area.dataset.ready) return;
+  area.dataset.ready = "1";
+  var onBack = !!document.getElementById("answer");
+  var kind = area.dataset.kind;
+  var read = function (id) { var el = document.getElementById(id); return el ? el.innerHTML.trim() : ""; };
+  var json = function (id) { try { return JSON.parse(document.getElementById(id).textContent || "[]"); } catch (e) { return []; } };
+  var plain = function (html) { var d = document.createElement("div"); d.innerHTML = html; return (d.textContent || "").replace(/\s+/g, " ").trim(); };
+  var answer = read("epsic-answer");
+
+  // Same option order on the front and the back of one review: seeded by the card id and the day.
+  var seed = 0, key = area.dataset.id + new Date().toDateString();
+  for (var i = 0; i < key.length; i++) seed = (seed * 31 + key.charCodeAt(i)) >>> 0;
+  var rand = function () { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };
+  var shuffle = function (a) { for (var i = a.length - 1; i > 0; i--) { var j = Math.floor(rand() * (i + 1)); var t = a[i]; a[i] = a[j]; a[j] = t; } return a; };
+
+  var showFact = function () {
+    if (onBack) return; // the back template shows the fact itself
+    var fact = read("epsic-fact");
+    if (!fact) return;
+    var box = document.createElement("div");
+    box.className = "fact";
+    box.innerHTML = "<p>" + fact + "</p><small>" + read("epsic-source") + "</small>";
+    area.appendChild(box);
+  };
+
+  if (kind === "mc") {
+    var wrong = shuffle(json("epsic-options").filter(function (o) { return plain(o) !== plain(answer); })).slice(0, 3);
+    var opts = shuffle([answer].concat(wrong));
+    var list = document.createElement("div");
+    list.className = "opts";
+    var buttons = opts.map(function (o) {
+      var b = document.createElement("button");
+      b.type = "button";
+      b.className = "opt";
+      b.innerHTML = o;
+      b.dataset.right = plain(o) === plain(answer) ? "1" : "";
+      list.appendChild(b);
+      return b;
+    });
+    var reveal = function (picked) {
+      buttons.forEach(function (b) {
+        b.disabled = true;
+        if (b.dataset.right) b.classList.add("right");
+        else if (b === picked) b.classList.add("wrong");
+        else b.classList.add("dim");
+      });
+      if (picked) showFact();
+    };
+    buttons.forEach(function (b) { b.addEventListener("click", function () { reveal(b); }); });
+    area.appendChild(list);
+    if (onBack) reveal(null);
+    return;
+  }
+
+  if (onBack) return; // typed cards: the back shows the answer
+
+  var accepted = json("epsic-accepted");
+  var strip = function (s) { return s.normalize("NFD").replace(/[̀-ͯ]/g, ""); };
+  var norm = function (s, keepAccents) {
+    var x = s.toLowerCase().replace(/[’`]/g, "'").replace(/\(.*?\)/g, " ").replace(/<[^>]+>/g, "");
+    if (!keepAccents) x = strip(x);
+    x = x.replace(/^\s*(le|la|les|l'|un|une|des)\s*/, "").replace(/[^\p{L}\p{N}' ]/gu, " ").replace(/\s+/g, " ").trim();
+    return x.replace(/^l'/, "");
+  };
+  var STOP = ["и", "в", "во", "на", "по", "о", "об", "с", "со", "за", "от", "до", "для", "через", "не", "к", "который", "которая"];
+  var ruWords = function (s) { return s.toLowerCase().replace(/ё/g, "е").split(/[^a-zа-я0-9]+/).filter(function (w) { return w && STOP.indexOf(w) < 0; }); };
+  var sameWord = function (a, b) { var i = 0; while (i < a.length && i < b.length && a[i] === b[i]) i++; return a === b || i >= Math.max(3, Math.min(a.length, b.length) - 2); };
+  var check = function (input) {
+    if (kind === "ru") {
+      var got = ruWords(input);
+      return { ok: accepted.some(function (v) { return ruWords(v).every(function (w) { return got.some(function (g) { return sameWord(w, g) || g.indexOf(w) === 0; }); }); }) };
+    }
+    if (kind === "num") {
+      var n = input.replace(/[\s'’.,]/g, "").match(/\d+/);
+      return { ok: !!n && accepted.indexOf(n[0]) >= 0 };
+    }
+    var exact = accepted.some(function (a) { return norm(a, true) === norm(input, true); });
+    var loose = accepted.some(function (a) { return norm(a) === norm(input); });
+    return { ok: loose, accents: loose && !exact };
+  };
+
+  var input = document.createElement("input");
+  input.className = "answer-in";
+  input.autocomplete = "off";
+  input.setAttribute("autocapitalize", "off");
+  input.placeholder = kind === "fr" ? "Ответ по-французски" : kind === "num" ? "Число" : "Ответ по-русски";
+  var btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "opt check";
+  btn.textContent = "Проверить";
+  var row = document.createElement("div");
+  row.className = "typed";
+  row.appendChild(input);
+  row.appendChild(btn);
+  area.appendChild(row);
+  var done = false;
+  var run = function () {
+    if (done || !input.value.trim()) return;
+    done = true;
+    input.disabled = true;
+    btn.disabled = true;
+    var r = check(input.value);
+    var box = document.createElement("div");
+    box.className = "result " + (r.ok ? "ok" : "bad");
+    box.innerHTML = "<b>" + (r.ok ? "Верно" : "Неверно") + "</b>" +
+      (r.accents ? "<div class=\"note\">Проверь accents</div>" : "") +
+      "<div class=\"correct\">" + answer + "</div>";
+    area.appendChild(box);
+    if (!r.ok) showFact();
+  };
+  btn.addEventListener("click", run);
+  input.addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); e.stopPropagation(); run(); } });
+  setTimeout(function () { input.focus(); }, 50);
+})();
+</script>

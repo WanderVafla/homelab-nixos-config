@@ -16,4 +16,6 @@ in
   "moodle-token.age".publicKeys = all;
   # Google service account JSON key for the study calendar. Readable by the agent.
   "google-calendar-key.age".publicKeys = all;
+  # Password of the Anki sync server user "vladyslav" (bare). Read by the host service and the agent.
+  "anki-sync-password.age".publicKeys = all;
 }
