@@ -4,7 +4,10 @@ NixOS flake for `homelab-server`.
 
 - `modules/base/` — lifeline layer: SSH, Tailscale, firewall, watchdog, admin user, deployer, hermes container.
 - `modules/system/` — general system settings.
-- `modules/hermes/` — Hermes agent settings, evaluated inside the hermes container only.
+- `modules/hermes/` — Hermes agent settings, evaluated inside the hermes container.
+  `modules/hermes/agent-skills/` holds the agent's own skills (Markdown only).
+- `modules/base/hermes-policy/` — the agent's instructions (AGENTS.md, SOUL.md, the owner's
+  skills), mounted read-only into the container.
 - `secrets/` — agenix recipients and encrypted secrets.
 
 ## Deploying
@@ -13,4 +16,6 @@ NixOS flake for `homelab-server`.
 appears in `/var/lib/homelab-deploy-trigger/`. It checks invariants, activates with `test`, runs a
 health check, then promotes the new generation or rolls back.
 
-Any change outside `modules/hermes/` waits for the owner: `sudo homelab-deploy approve` on the server.
+Any change waits for the owner (Telegram button or `sudo homelab-deploy approve`), except Markdown
+files under `modules/hermes/agent-skills/`: Nix in the container config runs as root there and could
+read the secrets mounted into the container.

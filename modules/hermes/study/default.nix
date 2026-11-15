@@ -1,5 +1,6 @@
-# Study tools for the agent: the gcal calendar tool, the moodle-calendar skill and Anki cards.
-# The Moodle gateway itself runs on the host (modules/base/study), at http://10.231.0.1:8070.
+# Study tools for the agent: the gcal calendar tool and Anki cards.
+# The Moodle gateway runs on the host (modules/base/study), at http://10.231.0.1:8070; the skills
+# that use these tools are in modules/base/hermes-policy/skills.
 { pkgs, ... }:
 
 let
@@ -12,8 +13,5 @@ in
 {
   imports = [ ./anki ];
 
-  services.hermes-agent = {
-    extraPackages = [ gcal pkgs.curl ];
-    hermesHomeFiles."skills/moodle-calendar/SKILL.md" = ./skills/moodle-calendar/SKILL.md;
-  };
+  services.hermes-agent.extraPackages = [ gcal pkgs.curl ];
 }

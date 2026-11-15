@@ -14,6 +14,7 @@
     ./deploy
     ./approval-bot
     ./hermes-container.nix
+    ./hermes-policy
     ./study
   ];
 }
