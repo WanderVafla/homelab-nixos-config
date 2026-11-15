@@ -6,6 +6,7 @@
   imports = [
     inputs.hermes-agent.nixosModules.default
     ./git.nix
+    ./study
   ];
 
   services.hermes-agent = {
@@ -35,14 +36,18 @@
         model = "deepseek/deepseek-v4.1-flash";
       };
 
+      # Cron schedules and the time in the prompt follow the owner's clock; the host runs in UTC.
+      timezone = "Europe/Zurich";
+
       memory = {
         memory_enabled = true;
         user_profile_enabled = true;
       };
 
-      # Terminal commands get no secrets except the repository token. Hermes never forwards
-      # GH_TOKEN or GITHUB_TOKEN (its own credentials), so the token uses a custom name.
-      terminal.env_passthrough = [ "HOMELAB_REPO_TOKEN" ];
+      # Terminal commands get no secrets except the repository token and the study calendar id.
+      # Hermes never forwards GH_TOKEN or GITHUB_TOKEN (its own credentials), so the token uses
+      # a custom name.
+      terminal.env_passthrough = [ "HOMELAB_REPO_TOKEN" "GOOGLE_CALENDAR_ID" ];
     };
 
     # AGENTS.md tells the agent how to work with the homelab repository.
