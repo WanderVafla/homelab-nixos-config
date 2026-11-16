@@ -7,10 +7,12 @@ note of the "EPSIC" note type, keyed by its id; the deck is "EPSIC::<subject nam
   anki-epsic list [--sub SUB]          existing cards as JSON (id, sub, cat, kind, question)
   anki-epsic add FILE                  create or update cards from a JSON file; never deletes
   anki-epsic init                      create the note type (only once, on the first collection)
+  anki-epsic templates                 replace the card templates and CSS with the shipped ones
   anki-epsic apply-progress FILE       one-time: copy Quiz EPSIC progress onto cards that are new
 
-`add` syncs before and after. Changing the note type forces a full sync, so only `init` does it;
-`add` refuses to run if the note type is missing.
+`add` and `templates` sync before and after. Changing the note type's fields forces a full sync,
+so only `init` creates them; `templates` changes only the template text and CSS, which syncs
+normally. `add` refuses to run if the note type is missing.
 
 Settings: ANKI_COLLECTION, ANKI_SYNC_URL, ANKI_SYNC_USER, ANKI_SYNC_PASSWORD_FILE,
 ANKI_EPSIC_TEMPLATES (front.html, back.html, style.css).
@@ -90,17 +92,37 @@ def notetype(col):
 def cmd_init(col, args):
     if notetype(col):
         fail("the EPSIC note type already exists")
-    templates = Path(os.environ["ANKI_EPSIC_TEMPLATES"])
     model = col.models.new(NOTETYPE)
     for name in FIELDS:
         col.models.add_field(model, col.models.new_field(name))
-    template = col.models.new_template("Card")
-    template["qfmt"] = (templates / "front.html").read_text()
-    template["afmt"] = (templates / "back.html").read_text()
-    col.models.add_template(model, template)
-    model["css"] = (templates / "style.css").read_text()
+    col.models.add_template(model, col.models.new_template("Card"))
+    apply_templates(model)
     col.models.add_dict(model)
     print(json.dumps({"created": NOTETYPE}))
+
+
+def apply_templates(model):
+    """Copy the shipped front, back and CSS into the note type; True if anything changed."""
+    templates = Path(os.environ["ANKI_EPSIC_TEMPLATES"])
+    template = model["tmpls"][0]
+    new = {"qfmt": (templates / "front.html").read_text(), "afmt": (templates / "back.html").read_text()}
+    css = (templates / "style.css").read_text()
+    changed = any(template[k] != v for k, v in new.items()) or model["css"] != css
+    template.update(new)
+    model["css"] = css
+    return changed
+
+
+def cmd_templates(col, args):
+    if not notetype(col):
+        fail("the EPSIC note type is missing; ask the owner")
+    before = sync(col)
+    model = notetype(col)
+    changed = apply_templates(model)
+    if changed:
+        col.models.update_dict(model)
+    print(json.dumps({"templates": "updated" if changed else "unchanged",
+                      "sync_before": before, "sync_after": sync(col) if changed else "skipped"}))
 
 
 # ---------- cards ----------
@@ -249,6 +271,7 @@ def main():
     parser = argparse.ArgumentParser(prog="anki-epsic", description="EPSIC flashcards in Anki")
     commands = parser.add_subparsers(dest="command", required=True)
     commands.add_parser("init", help="create the EPSIC note type")
+    commands.add_parser("templates", help="update the card templates and CSS")
     s = commands.add_parser("sync", help="sync with the server")
     s.add_argument("--allow-upload", action="store_true", help="allow replacing the server copy")
     lst = commands.add_parser("list", help="existing cards")
@@ -259,8 +282,8 @@ def main():
     prog.add_argument("file")
     args = parser.parse_args()
 
-    handlers = {"init": cmd_init, "sync": cmd_sync, "list": cmd_list, "add": cmd_add,
-                "apply-progress": cmd_apply_progress}
+    handlers = {"init": cmd_init, "templates": cmd_templates, "sync": cmd_sync, "list": cmd_list,
+                "add": cmd_add, "apply-progress": cmd_apply_progress}
     col = open_collection()
     try:
         handlers[args.command](col, args)

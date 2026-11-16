@@ -9,8 +9,11 @@
 <template id="epsic-fact">{{Fact}}</template>
 <template id="epsic-source">{{Source}}</template>
 <script>
-(function () {
-  // Interactive part of an EPSIC card: choose an option or type the answer, then grade in Anki.
+(function main() {
+  // Run once the whole card is parsed: on the back, hr#answer comes after this script.
+  if (document.readyState === "loading") { document.addEventListener("DOMContentLoaded", main); return; }
+  // Interactive part of an EPSIC card: choose an option or type the answer, see the result, then
+  // grade with the card's own Again/Hard/Good/Easy buttons, as in Quiz EPSIC.
   // Answer checking follows Quiz EPSIC: accents, articles and brackets are ignored for French,
   // word stems are compared for Russian, digits only for numbers.
   var area = document.getElementById("epsic-area");
@@ -22,6 +25,63 @@
   var json = function (id) { try { return JSON.parse(document.getElementById(id).textContent || "[]"); } catch (e) { return []; } };
   var plain = function (html) { var d = document.createElement("div"); d.innerHTML = html; return (d.textContent || "").replace(/\s+/g, " ").trim(); };
   var answer = read("epsic-answer");
+
+  // Grading. AnkiDroid: its JavaScript API; Anki desktop: pycmd. Anki grades only on the back, so
+  // a grade chosen on the front is kept (sessionStorage, window.name as fallback), the card flips,
+  // and the back applies it at once.
+  var api = null;
+  try {
+    if (typeof AnkiDroidJS !== "undefined")
+      api = new AnkiDroidJS({ version: "0.0.3", developer: "https://github.com/WanderVafla/homelab-nixos-config" });
+  } catch (e) { api = null; }
+  var canGrade = !!api || typeof pycmd === "function";
+  var PENDING = "epsic-grade:" + area.dataset.id + ":";
+  var keep = function (ease) {
+    try { sessionStorage.setItem("epsic-grade", PENDING + ease); } catch (e) {}
+    window.name = PENDING + ease;
+  };
+  var takePending = function () {
+    var v = "";
+    try { v = sessionStorage.getItem("epsic-grade") || ""; sessionStorage.removeItem("epsic-grade"); } catch (e) {}
+    if (!v && window.name.indexOf("epsic-grade:") === 0) v = window.name;
+    window.name = "";
+    return v.indexOf(PENDING) === 0 ? +v.slice(PENDING.length) : 0;
+  };
+  var answerCard = function (ease) {
+    if (api) api["ankiAnswerEase" + ease]();
+    else pycmd("ease" + ease);
+  };
+  var grade = function (ease) {
+    if (onBack) { answerCard(ease); return; }
+    keep(ease);
+    if (api) api.ankiShowAnswer();
+    else pycmd("ans");
+  };
+  if (onBack && canGrade) {
+    var pending = takePending();
+    if (pending >= 1 && pending <= 4) { answerCard(pending); return; }
+  }
+  var LABELS = ["Снова", "Трудно", "Хорошо", "Легко"];
+  var showGrades = function (suggested) {
+    if (!canGrade) return;
+    var row = document.createElement("div");
+    row.className = "grades";
+    LABELS.forEach(function (label, i) {
+      var b = document.createElement("button");
+      b.type = "button";
+      b.className = "grade g" + (i + 1) + (i + 1 === suggested ? " suggest" : "");
+      b.innerHTML = label + "<small></small>";
+      b.addEventListener("click", function () { row.querySelectorAll("button").forEach(function (x) { x.disabled = true; }); grade(i + 1); });
+      row.appendChild(b);
+      // Next intervals only on the back: AnkiDroid computes them when the answer is shown, so on
+      // the front its API returns nothing or the previous card's values.
+      if (api && onBack) api["ankiGetNextTime" + (i + 1)]().then(function (t) {
+        try { var j = JSON.parse(t); t = j && j.value !== undefined ? j.value : t; } catch (e) {}
+        if (typeof t === "string" && t.length < 16) b.querySelector("small").textContent = t;
+      }).catch(function () {});
+    });
+    area.appendChild(row);
+  };
 
   // Same option order on the front and the back of one review: seeded by the card id and the day.
   var seed = 0, key = area.dataset.id + new Date().toDateString();
@@ -61,6 +121,7 @@
         else b.classList.add("dim");
       });
       if (picked) showFact();
+      showGrades(!picked ? 0 : picked.dataset.right ? 3 : 1);
     };
     buttons.forEach(function (b) { b.addEventListener("click", function () { reveal(b); }); });
     area.appendChild(list);
@@ -68,7 +129,7 @@
     return;
   }
 
-  if (onBack) return; // typed cards: the back shows the answer
+  if (onBack) { showGrades(0); return; } // typed cards: the back shows the answer
 
   var accepted = json("epsic-accepted");
   var strip = function (s) { return s.normalize("NFD").replace(/[̀-ͯ]/g, ""); };
@@ -123,9 +184,10 @@
       "<div class=\"correct\">" + answer + "</div>";
     area.appendChild(box);
     if (!r.ok) showFact();
+    showGrades(r.ok ? 3 : 1);
   };
   btn.addEventListener("click", run);
+  // No autofocus: on Android a field focused by script does not open the keyboard when tapped.
   input.addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); e.stopPropagation(); run(); } });
-  setTimeout(function () { input.focus(); }, 50);
 })();
 </script>
