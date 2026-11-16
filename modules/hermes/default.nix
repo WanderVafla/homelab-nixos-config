@@ -22,9 +22,11 @@
 
     settings = {
       # Main model for conversation and planning. OPENROUTER_API_KEY comes from hermes-env.
+      # Haiku costs about 1/17 of Sonnet; for a hard task the owner switches one session with
+      # `/model anthropic/claude-sonnet-5.5` (session-scoped by default).
       model = {
         provider = "openrouter";
-        default = "anthropic/claude-sonnet-5.5";
+        default = "anthropic/claude-haiku-5.5";
       };
 
       # Cheap model for side tasks instead of the main model.
