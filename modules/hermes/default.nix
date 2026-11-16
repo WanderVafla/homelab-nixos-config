@@ -22,9 +22,11 @@
 
     settings = {
       # Main model for conversation and planning. OPENROUTER_API_KEY comes from hermes-env.
+      # Haiku costs about 1/17 of Sonnet; for a hard task the owner switches one session with
+      # `/model anthropic/claude-sonnet-5.5` (session-scoped by default).
       model = {
         provider = "openrouter";
-        default = "anthropic/claude-sonnet-5.5";
+        default = "anthropic/claude-haiku-5.5";
       };
 
       # Cheap model for side tasks instead of the main model.
@@ -41,6 +43,10 @@
 
       # Cron schedules and the time in the prompt follow the owner's clock; the host runs in UTC.
       timezone = "Europe/Zurich";
+
+      # Every enabled tool's schema is sent with every model call. These are unused on a headless
+      # server (no desktop, no image or voice replies) and the browser can post data anywhere.
+      agent.disabled_toolsets = [ "browser" "computer_use" "image_gen" "tts" "connections" ];
 
       memory = {
         memory_enabled = true;
