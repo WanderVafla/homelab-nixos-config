@@ -42,6 +42,10 @@
       # Cron schedules and the time in the prompt follow the owner's clock; the host runs in UTC.
       timezone = "Europe/Zurich";
 
+      # Every enabled tool's schema is sent with every model call. These are unused on a headless
+      # server (no desktop, no image or voice replies) and the browser can post data anywhere.
+      agent.disabled_toolsets = [ "browser" "computer_use" "image_gen" "tts" "connections" ];
+
       memory = {
         memory_enabled = true;
         user_profile_enabled = true;
