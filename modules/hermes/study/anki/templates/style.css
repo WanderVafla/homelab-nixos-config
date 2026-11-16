@@ -42,8 +42,9 @@
 hr#answer { border: 0; border-top: 1px solid var(--rule); margin: 16px 0; }
 .grades { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-top: 14px; }
 .grade { font: 600 15px "Helvetica Neue", Arial, sans-serif; color: var(--ink); background: var(--paper);
-  border: 1.5px solid var(--rule); border-radius: 6px; padding: 10px 4px; text-align: center; }
-.grade small { display: block; font: 12px ui-monospace, Menlo, monospace; color: var(--muted); min-height: 1em; }
+  border: 1.5px solid var(--rule); border-radius: 6px; padding: 12px 4px; text-align: center; }
+.grade small { display: block; font: 12px ui-monospace, Menlo, monospace; color: var(--muted); }
+.grade small:empty { display: none; }
 .grade.g1 { border-color: var(--bad); } .grade.g2 { border-color: var(--hard); }
 .grade.g3 { border-color: var(--ok); } .grade.g4 { border-color: var(--secg); }
 .grade.suggest { box-shadow: 0 0 0 3px var(--rule); font-weight: 800; }

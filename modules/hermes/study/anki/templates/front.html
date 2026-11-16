@@ -73,9 +73,11 @@
       b.innerHTML = label + "<small></small>";
       b.addEventListener("click", function () { row.querySelectorAll("button").forEach(function (x) { x.disabled = true; }); grade(i + 1); });
       row.appendChild(b);
-      if (api) api["ankiGetNextTime" + (i + 1)]().then(function (t) {
+      // Next intervals only on the back: AnkiDroid computes them when the answer is shown, so on
+      // the front its API returns nothing or the previous card's values.
+      if (api && onBack) api["ankiGetNextTime" + (i + 1)]().then(function (t) {
         try { var j = JSON.parse(t); t = j && j.value !== undefined ? j.value : t; } catch (e) {}
-        if (typeof t === "string" && t.length < 12) b.querySelector("small").textContent = t;
+        if (typeof t === "string" && t.length < 16) b.querySelector("small").textContent = t;
       }).catch(function () {});
     });
     area.appendChild(row);
