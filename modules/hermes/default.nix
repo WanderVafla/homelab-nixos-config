@@ -22,23 +22,23 @@
 
     settings = {
       # Main model for conversation and planning. OPENROUTER_API_KEY comes from hermes-env.
-      # Haiku costs about 1/17 of Sonnet; for a hard task the owner switches one session with
-      # `/model anthropic/claude-sonnet-5.5` (session-scoped by default).
+      # The main model is z-ai/glm-5.3-flash on OpenRouter; the owner can switch one session
+      # with `/model <id>` (session-scoped by default).
       model = {
         provider = "openrouter";
-        default = "anthropic/claude-haiku-5.5";
+        default = "z-ai/glm-5.3-flash";
       };
 
       # Cheap model for side tasks instead of the main model.
       auxiliary = pkgs.lib.genAttrs [ "compression" "title_generation" "vision" "approval" ] (_: {
         provider = "openrouter";
-        model = "anthropic/claude-haiku-5.5";
+        model = "z-ai/glm-5.3-flash";
       });
 
       # Subagents (delegate_task) write server configuration code; see SOUL.md.
       delegation = {
         provider = "openrouter";
-        model = "deepseek/deepseek-v4.1-flash";
+        model = "z-ai/glm-5.3-flash";
       };
 
       # Cron schedules and the time in the prompt follow the owner's clock; the host runs in UTC.
