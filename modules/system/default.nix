@@ -9,5 +9,6 @@
     ./nix.nix
     ./power.nix
     ./packages.nix
+    ./monitoring.nix
   ];
 }
