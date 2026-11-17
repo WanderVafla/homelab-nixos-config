@@ -72,7 +72,7 @@
       jq
       python3
       ripgrep
-      sqlite3
+      sqlite
       unzip
       yq
     ];
