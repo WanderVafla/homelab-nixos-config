@@ -1,0 +1,11 @@
+name: secret-request
+version: 1.0.0
+description: "Ask the owner for a secret in Telegram. The reply never reaches the model: a pre_gateway_dispatch hook takes it out before the agent, encrypts it with age to the host and owner keys, deletes the message and hands the agent only the .age file."
+author: homelab
+kind: standalone
+platforms:
+  - linux
+provides_tools:
+  - request_secret
+provides_hooks:
+  - pre_gateway_dispatch

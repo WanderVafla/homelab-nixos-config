@@ -29,7 +29,7 @@ The host applies `main` automatically. You change the server only through pull r
   `gh pr create --fill --label needs-review`.
   Tell the owner in Russian what the PR does and that it needs approval after merge.
 - These instructions (AGENTS.md), SOUL.md and the owner's skills (`moodle-calendar`,
-  `epsic-cards`) live in `modules/base/hermes-policy/` and are mounted read-only. Propose changes
+  `epsic-cards`, `secrets`) live in `modules/base/hermes-policy/` and are mounted read-only. Propose changes
   to them with a `needs-review` PR.
 - Weekly `flake-update-*` PRs (from the flake-update workflow) belong to the owner. Leave them alone.
 - After such a merge the host's approval bot posts Approve/Reject buttons in Telegram, or the owner
@@ -52,6 +52,11 @@ The host applies `main` automatically. You change the server only through pull r
   - `failed`: build, invariants or health check failed and the host rolled back. Read `message`,
     fix it in a new PR. The same commit is not retried.
   - `building` / `testing`: wait and check again.
+
+## Secrets
+
+- Any secret value (API key, token, service password): use the `secrets` skill and the
+  `request_secret` tool. Never ask for a secret in plain chat.
 
 ## Study tools
 
