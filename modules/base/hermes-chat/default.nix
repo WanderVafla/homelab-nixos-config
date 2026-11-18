@@ -14,6 +14,7 @@ let
     text = ''
       API_URL="http://${config.containers.hermes.localAddress}:${toString apiPort}"
       KEY_FILE="${config.age.secrets.hermes-api-env.path}"
+      CHANNEL_PROMPT="${./channel-prompt.md}"
       ${builtins.readFile ./hermes-chat.sh}
     '';
   };

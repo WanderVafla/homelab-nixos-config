@@ -2,8 +2,9 @@
 # (`ssh homelab hermes-chat ...`), so the SSH login is the authorization and
 # API_SERVER_KEY never leaves the server.
 #
-# Set by the Nix wrapper: API_URL (the API inside the hermes container) and
-# KEY_FILE (env file with the API_SERVER_KEY= line, readable by the owner only).
+# Set by the Nix wrapper: API_URL (the API inside the hermes container),
+# KEY_FILE (env file with the API_SERVER_KEY= line, readable by the owner only) and
+# CHANNEL_PROMPT (tells Hermes it talks through the desktop widget, not Telegram).
 #
 # Commands:
 #   new                         create a session, print its id
@@ -53,7 +54,8 @@ case "$cmd" in
   send)
     [ $# -eq 2 ] || usage
     check_id "$2"
-    jq -Rs '{message: .}' |
+    # system_message is added after the cached system prompt on every turn and never stored.
+    jq -Rs --rawfile channel "$CHANNEL_PROMPT" '{message: ., system_message: $channel}' |
       api --no-buffer -X POST -H 'Accept: text/event-stream' -d @- \
         "$API_URL/api/sessions/$2/chat/stream" |
       sse_to_lines
