@@ -10,6 +10,7 @@
     ./git.nix
     ./agent-skills.nix
     ./api-server.nix
+    ./secret-request
     ./study
   ];
 
