@@ -15,6 +15,7 @@
     ./approval-bot
     ./hermes-container.nix
     ./hermes-policy
+    ./hermes-chat
     ./study
   ];
 }

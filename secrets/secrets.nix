@@ -18,4 +18,7 @@ in
   "google-calendar-key.age".publicKeys = all;
   # Password of the Anki sync server user "vladyslav" (bare). Read by the host service and the agent.
   "anki-sync-password.age".publicKeys = all;
+  # API_SERVER_KEY=<key> for the Hermes API server. Read by the owner's login (hermes-chat over
+  # SSH) and mounted into the hermes container.
+  "hermes-api-env.age".publicKeys = all;
 }

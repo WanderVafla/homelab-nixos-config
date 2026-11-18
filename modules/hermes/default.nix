@@ -9,6 +9,7 @@
     inputs.hermes-agent.nixosModules.default
     ./git.nix
     ./agent-skills.nix
+    ./api-server.nix
     ./study
   ];
 
