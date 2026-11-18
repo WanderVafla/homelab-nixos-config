@@ -8,8 +8,9 @@
 #
 # Commands:
 #   new                         create a session, print its id
+#   sessions                    print the desktop chat sessions as JSON, newest first
 #   send <session-id>           message on stdin; print stream events
-#   messages <session-id>       print the session history as JSON
+#   messages <session-id>       print the session's user and assistant messages as JSON
 #   approve <run-id> <choice>   answer an approval request: once, session or deny
 #
 # `send` prints one event per line: "<event name><TAB><JSON payload>".
@@ -45,6 +46,9 @@ sse_to_lines() {
   '
 }
 
+MAX_SESSIONS=30
+MAX_MESSAGES=200
+
 cmd="${1:-}"
 case "$cmd" in
   new)
@@ -60,10 +64,28 @@ case "$cmd" in
         "$API_URL/api/sessions/$2/chat/stream" |
       sse_to_lines
     ;;
+  sessions)
+    [ $# -eq 1 ] || usage
+    # Only desktop chats: Telegram sessions belong to the gateway and are not continued here.
+    api "$API_URL/api/sessions?source=api_server&limit=$MAX_SESSIONS" |
+      jq -c '.data | map({id, title: (.title // ""), lastActive: .last_active, count: .message_count})'
+    ;;
   messages)
     [ $# -eq 2 ] || usage
     check_id "$2"
-    api "$API_URL/api/sessions/$2/messages"
+    # Keeps user and assistant text; tool calls become the tool names of the next reply.
+    api "$API_URL/api/sessions/$2/messages?limit=$MAX_MESSAGES" | jq -c '
+      def text: if type == "array" then map(.text? // "") | join("") elif type == "string" then . else "" end;
+      reduce .data[] as $m ({out: [], tools: []};
+        ($m.content | text) as $text
+        | ([$m.tool_calls[]?.function.name? // empty]) as $names
+        | if $m.role == "user" and $text != "" then
+            .out += [{role: "user", text: $text}] | .tools = []
+          elif $m.role == "assistant" then
+            .tools += $names
+            | if $text != "" then .out += [{role: "assistant", text: $text, tools: (.tools | unique)}] | .tools = [] else . end
+          else . end)
+      | .out'
     ;;
   approve)
     [ $# -eq 3 ] || usage

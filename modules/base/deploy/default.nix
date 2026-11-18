@@ -34,6 +34,8 @@ let
   };
 in
 {
+  imports = [ ./status.nix ];
+
   options.homelab.deploy.package = lib.mkOption {
     type = lib.types.package;
     readOnly = true;
