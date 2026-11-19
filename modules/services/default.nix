@@ -4,5 +4,6 @@
 {
   imports = [
     ./anki-sync-server.nix
+    ./monitoring.nix
   ];
 }
