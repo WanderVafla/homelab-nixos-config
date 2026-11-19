@@ -1,17 +1,21 @@
 # Monitoring stack: Prometheus scrapes the host's node exporter, Grafana serves dashboards.
 # Grafana is reachable only over Tailscale: the LAN firewall keeps the ports closed and
-# tailscale0 is a trusted interface. The admin password is generated once on the host
-# (the owner reads it with: sudo cat /var/lib/grafana-admin-password) and is never in git.
+# tailscale0 is a trusted interface. The admin password and the database encryption key are
+# generated once on the host (the owner reads the password with:
+# sudo cat /var/lib/grafana-admin-password) and are never in git.
 { config, ... }:
 
 let
   grafanaPort = 3000;
   passwordFile = "/var/lib/grafana-admin-password";
+  secretKeyFile = "/var/lib/grafana-secret-key";
 in
 {
-  # Random password generated once on the host, readable only by the grafana user.
-  systemd.services.grafana-admin-password = {
-    description = "Generate the Grafana admin password if missing";
+  # Random admin password and DB encryption secret key, generated once on the host and
+  # readable only by the grafana user. Rotating the secret key later would re-encrypt
+  # nothing useful, so it is written once and left alone.
+  systemd.services.grafana-secrets = {
+    description = "Generate Grafana admin password and secret key if missing";
     before = [ "grafana.service" ];
     wantedBy = [ "multi-user.target" ];
     serviceConfig.Type = "oneshot";
@@ -20,6 +24,11 @@ in
         tr -dc 'A-Za-z0-9' </dev/urandom | head -c 24 > ${passwordFile}
         chown grafana:grafana ${passwordFile}
         chmod 0400 ${passwordFile}
+      fi
+      if [ ! -s ${secretKeyFile} ]; then
+        tr -dc 'A-Za-z0-9' </dev/urandom | head -c 64 > ${secretKeyFile}
+        chown grafana:grafana ${secretKeyFile}
+        chmod 0400 ${secretKeyFile}
       fi
     '';
   };
@@ -54,6 +63,7 @@ in
       security = {
         admin_user = "vladyslav";
         admin_password = "$__file{${passwordFile}}";
+        secret_key = "$__file{${secretKeyFile}}";
       };
       users.allow_sign_up = false;
       analytics.reporting_enabled = false;
