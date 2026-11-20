@@ -146,7 +146,7 @@ on_message() { # message json
     thread=$(jq -r '.message_thread_id // ""' <<<"$1")
     send "$chat" "APPROVAL_CHAT_ID=$chat
 APPROVAL_OWNER_ID=$from
-APPROVAL_THREAD_ID=$thread" "$APPROVAL_THREAD_ID" || true
+APPROVAL_THREAD_ID=$thread" "" "$APPROVAL_THREAD_ID" || true
   fi
   if [[ $text == /grafanapassword* ]]; then
     chat=$(jq -r .chat.id <<<"$1")
