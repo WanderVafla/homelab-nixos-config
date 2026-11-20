@@ -148,6 +148,20 @@ on_message() { # message json
 APPROVAL_OWNER_ID=$from
 APPROVAL_THREAD_ID=$thread" "" "$APPROVAL_THREAD_ID" || true
   fi
+  # /check: manually start the deploy unit so it fetches and checks new commits.
+  if [[ $text == /check* ]]; then
+    chat=$(jq -r .chat.id <<<"$1")
+    from=$(jq -r .from.id <<<"$1")
+    if [[ $from != "$APPROVAL_OWNER_ID" || $chat != "$APPROVAL_CHAT_ID" ]]; then
+      log "ignored /check from user $from in chat $chat"
+      return
+    fi
+    if systemctl start --no-block homelab-deploy.service; then
+      send "$chat" "Проверка коммитов запущена. О результате сообщу в этой теме." "" "$APPROVAL_THREAD_ID" || true
+    else
+      send "$chat" "Не смог запустить homelab-deploy.service, см. журнал." "" "$APPROVAL_THREAD_ID" || true
+    fi
+  fi
   if [[ $text == /grafanapassword* ]]; then
     chat=$(jq -r .chat.id <<<"$1")
     from=$(jq -r .from.id <<<"$1")
