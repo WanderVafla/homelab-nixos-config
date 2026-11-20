@@ -64,11 +64,19 @@
     # AGENTS.md is mounted here by the host (modules/base/hermes-policy).
     workingDirectory = "/var/lib/hermes/workspace";
 
+    # CLI tools for data processing, parsing and search.
     extraPackages = with pkgs; [
       config.homelab.gh
+      bat
+      fd
+      fzf
       git
       jq
+      python3
       ripgrep
+      sqlite
+      unzip
+      yq
     ];
   };
 }
