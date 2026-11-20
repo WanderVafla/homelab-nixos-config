@@ -134,13 +134,29 @@ on_callback() { # callback_query json
 }
 
 on_message() { # message json
-  local text chat from
+  local text chat from password
   text=$(jq -r '.text // ""' <<<"$1")
   if [[ $text == /chatid* ]]; then
     chat=$(jq -r .chat.id <<<"$1")
     from=$(jq -r .from.id <<<"$1")
     send "$chat" "APPROVAL_CHAT_ID=$chat
 APPROVAL_OWNER_ID=$from" || true
+  fi
+  if [[ $text == /grafanapassword* ]]; then
+    chat=$(jq -r .chat.id <<<"$1")
+    from=$(jq -r .from.id <<<"$1")
+    # Only the owner may read the password, and only in the approval chat.
+    if [[ $from != "$APPROVAL_OWNER_ID" || $chat != "$APPROVAL_CHAT_ID" ]]; then
+      log "ignored /grafanapassword from user $from in chat $chat"
+      return
+    fi
+    password=$(tr -d '[:space:]' </var/lib/grafana-admin-password 2>/dev/null || true)
+    if [[ -n $password ]]; then
+      send "$chat" "Логин: vladyslav
+Пароль: $password" || true
+    else
+      send "$chat" "Не смог прочитать /var/lib/grafana-admin-password" || true
+    fi
   fi
 }
 
