@@ -28,6 +28,8 @@ let
       BUNDLED_SKILLS="${inputs.hermes-agent}/skills"
       PROTECTED_SKILLS="${lib.concatStringsSep " " (lib.attrNames (builtins.readDir ../hermes-policy/skills))}"
       HERMES_UID=2000 # users.users.hermes.uid in ../hermes-container.nix
+      # Topic (thread) of the owner's group the bot posts into (t.me/c/4369153107/90).
+      APPROVAL_THREAD_ID=90
     '' + builtins.readFile ./skill-watch.sh + builtins.readFile ./approval-bot.sh;
   };
 in

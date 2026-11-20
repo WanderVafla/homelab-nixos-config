@@ -15,6 +15,8 @@ STATUS_FILE="$DEPLOY_STATE_DIR/status.json"
 
 APPROVAL_CHAT_ID=${APPROVAL_CHAT_ID:-}
 APPROVAL_OWNER_ID=${APPROVAL_OWNER_ID:-}
+# Optional topic id of the owner's group: when set, messages go into that topic.
+APPROVAL_THREAD_ID=${APPROVAL_THREAD_ID:-}
 
 log() { echo "[approval-bot] $*" >&2; }
 
@@ -28,10 +30,12 @@ api() { # method json
       --header 'Content-Type: application/json' --data-binary "$2"
 }
 
-send() { # chat text [reply_markup]
+send() { # chat text [reply_markup] [thread_id]
   api sendMessage "$(jq -nc --arg chat "$1" --arg text "$2" --argjson markup "${3:-null}" \
+    --argjson thread "${4:-null}" \
     '{chat_id: $chat, text: $text, disable_web_page_preview: true}
-     + (if $markup == null then {} else {reply_markup: $markup} end)')" >/dev/null
+     + (if $markup == null then {} else {reply_markup: $markup} end)
+     + (if $thread == null then {} else {message_thread_id: $thread} end)')" >/dev/null
 }
 
 # Replace a message's text and drop its buttons.
@@ -57,7 +61,7 @@ notify_pending() {
     '{inline_keyboard: [[{text: "Одобрить", callback_data: ("approve:" + $rev)},
                          {text: "Отклонить", callback_data: ("reject:" + $rev)}]]}')
   if send "$APPROVAL_CHAT_ID" "Ждёт одобрения.
-$summary" "$buttons"; then
+$summary" "$buttons" "$APPROVAL_THREAD_ID"; then
     echo "$rev" >"$NOTIFIED_FILE"
   fi
 }
@@ -74,13 +78,13 @@ report_status() {
   case $state in
     failed)
       send "$APPROVAL_CHAT_ID" "Деплой ${rev:0:7} не прошёл: $message
-Нужен новый коммит с исправлением или: sudo homelab-deploy retry" || return 0
+Нужен новый коммит с исправлением или: sudo homelab-deploy retry" "$APPROVAL_THREAD_ID" || return 0
       rm -f "$WATCH_FILE"
       ;;
     deployed)
       if [[ -f $WATCH_FILE ]]; then
         send "$APPROVAL_CHAT_ID" "Деплой ${rev:0:7}: deployed
-$message" || return 0
+$message" "" "$APPROVAL_THREAD_ID" || return 0
         rm -f "$WATCH_FILE"
       fi
       ;;
@@ -134,13 +138,15 @@ on_callback() { # callback_query json
 }
 
 on_message() { # message json
-  local text chat from password
+  local text chat from password thread
   text=$(jq -r '.text // ""' <<<"$1")
   if [[ $text == /chatid* ]]; then
     chat=$(jq -r .chat.id <<<"$1")
     from=$(jq -r .from.id <<<"$1")
+    thread=$(jq -r '.message_thread_id // ""' <<<"$1")
     send "$chat" "APPROVAL_CHAT_ID=$chat
-APPROVAL_OWNER_ID=$from" || true
+APPROVAL_OWNER_ID=$from
+APPROVAL_THREAD_ID=$thread" "" "$APPROVAL_THREAD_ID" || true
   fi
   if [[ $text == /grafanapassword* ]]; then
     chat=$(jq -r .chat.id <<<"$1")
@@ -153,9 +159,9 @@ APPROVAL_OWNER_ID=$from" || true
     password=$(tr -d '[:space:]' </var/lib/grafana-admin-password 2>/dev/null || true)
     if [[ -n $password ]]; then
       send "$chat" "Логин: vladyslav
-Пароль: $password" || true
+Пароль: $password" "" "$APPROVAL_THREAD_ID" || true
     else
-      send "$chat" "Не смог прочитать /var/lib/grafana-admin-password" || true
+      send "$chat" "Не смог прочитать /var/lib/grafana-admin-password" "" "$APPROVAL_THREAD_ID" || true
     fi
   fi
 }
